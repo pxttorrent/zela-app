@@ -51,7 +51,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
       <section className="relative overflow-hidden pt-12 pb-20 px-6 lg:px-20 bg-gradient-to-b from-rose-50/50 to-white text-center">
         <div className="max-w-4xl mx-auto space-y-6 animate-[fadeIn_800ms_ease-out]">
           <div className="flex justify-center mb-6">
-            <img src="/logo.png" alt="Zela Logo" className="w-24 h-24 rounded-2xl shadow-lg shadow-rose-200" />
+            <img src="/logo.png" alt="Zela Logo" className="w-32 h-32 rounded-[28px] shadow-lg shadow-rose-200" />
           </div>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-100/50 text-rose-600 font-bold text-xs uppercase tracking-widest mx-auto">
             <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />

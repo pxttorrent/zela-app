@@ -791,7 +791,7 @@ export default function App() {
       <div className="min-h-screen bg-white flex flex-col w-full relative">
         <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-50">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Zela" className="w-10 h-10 rounded-2xl shadow-sm" />
+            <img src="/logo.png" alt="Zela" className="w-12 h-12 rounded-[12px] shadow-sm" />
             <div className="font-extrabold tracking-tight text-slate-900 text-xl">ZELA</div>
           </div>
           <Button variant="ghost" size="sm" onClick={() => setView('login')}>
