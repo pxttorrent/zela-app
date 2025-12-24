@@ -1,0 +1,9 @@
+{
+  "name": "Zela",
+  "short_name": "Zela",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#fb7185",
+  "icons": []
+}
