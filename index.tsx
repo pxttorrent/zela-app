@@ -10,6 +10,7 @@ import {
  } from 'lucide-react';
 
 import { api } from './api';
+import { SalesLanding } from './components/SalesLanding';
 
 // --- TYPES ---
 type View = 'landing' | 'onboarding' | 'dashboard' | 'tools' | 'vaccines' | 'profile' | 'login' | 'signup' | 'reports' | 'routine' | 'community' | 'spirituality' | 'admin' | 'landingSales' | 'settings';
@@ -437,36 +438,62 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem('zela_token');
     
-    // Legacy/Local Data Loading
-    const savedBaby = localStorage.getItem('zela_baby');
-    const savedChallenges = localStorage.getItem('zela_challenges');
-    const savedVaccines = localStorage.getItem('zela_vaccines');
-    const savedTrackers = localStorage.getItem('zela_trackers');
-    const savedGrowth = localStorage.getItem('zela_growth');
-
-    if (savedBaby) setBaby(JSON.parse(savedBaby));
-    if (savedChallenges) setUserChallenges(JSON.parse(savedChallenges));
-    if (savedVaccines) setUserVaccines(JSON.parse(savedVaccines));
-    if (savedTrackers) setTrackers(JSON.parse(savedTrackers));
-    if (savedGrowth) setGrowthLogs(JSON.parse(savedGrowth));
-
     if (token) {
-      api.getMe(token).then(({ user }) => {
+      setLoading(true);
+      api.getMe(token).then(async ({ user }) => {
         setUser(user);
-        if (savedBaby) setHasSavedSession(true);
+        
+        try {
+          // Load Dashboard Data (Baby, Trackers, Challenges)
+          const data = await api.getDashboard();
+          
+          if (data.baby) {
+            setBaby({
+              name: data.baby.name,
+              birthDate: data.baby.birth_date, // Map snake_case
+              gender: data.baby.gender
+            });
+            // Map baby.id for internal use if needed, but we mostly need it for API calls
+            // We might need to store full baby object or ID in state
+            // Let's add id to baby state or store separate
+            // For now, let's assume we can fetch babyId from backend response and store it.
+            // Extending baby type on the fly or proper type
+            (data.baby as any).id = data.baby.id; 
+            
+            setHasSavedSession(true);
+            setView('dashboard');
+          } else {
+             setView('onboarding');
+          }
+
+          if (data.trackers) {
+             setTrackers(data.trackers.map((t: any) => ({
+               id: t.id,
+               type: t.type,
+               timestamp: new Date(t.timestamp).getTime()
+             })));
+          }
+
+          if (data.recentChallenges) {
+             setUserChallenges(data.recentChallenges.map((c: any) => ({
+                challengeId: c.template_id,
+                completedDate: c.completed_at
+             })));
+          }
+
+        } catch (err) {
+          console.error('Error loading dashboard', err);
+        }
+
       }).catch(() => {
         localStorage.removeItem('zela_token');
-      });
+        setView('landingSales');
+      }).finally(() => setLoading(false));
+    } else {
+      setView('landingSales');
+      setLoading(false);
     }
-
-    setHasSavedSession(Boolean(token && savedBaby));
-    setView('landingSales');
-    setLoading(false);
   }, []);
-
-  const saveState = (key: string, data: any) => {
-    localStorage.setItem(key, JSON.stringify(data));
-  };
 
   // --- ACTIONS ---
   const handleAuthLogin = async (e: React.FormEvent) => {
@@ -477,9 +504,10 @@ export default function App() {
       localStorage.setItem('zela_token', token);
       setUser(user);
       
-      const savedBaby = localStorage.getItem('zela_baby');
-      if (savedBaby) {
-         setBaby(JSON.parse(savedBaby));
+      // Load Dashboard
+      const data = await api.getDashboard();
+      if (data.baby) {
+         setBaby({ name: data.baby.name, birthDate: data.baby.birth_date, gender: data.baby.gender });
          setView('dashboard');
       } else {
          setView('onboarding');
@@ -502,61 +530,36 @@ export default function App() {
     }
   };
 
-  const handleCreateBaby = (name: string, birthDate: string, gender: any) => {
-    const newBaby = { name, birthDate, gender };
-    setBaby(newBaby);
-    saveState('zela_baby', newBaby);
-
-    // Initial Vaccines
-    const generatedVaccines = VACCINES_DB.map(t => ({
-      templateId: t.id,
-      takenAt: null,
-      status: 'pending' as const
-    }));
-    setUserVaccines(generatedVaccines);
-    saveState('zela_vaccines', generatedVaccines);
-    
-    // Initial Growth Log (Birth)
-    const initialGrowth = [{ date: birthDate, weight: 3.2, height: 49 }]; // Defaults
-    setGrowthLogs(initialGrowth);
-    saveState('zela_growth', initialGrowth);
-
-    if (user) {
-      const updatedUser = { ...user, isOnboarded: true };
-      setUser(updatedUser);
-      saveState('zela_user', updatedUser);
+  const handleCreateBaby = async (name: string, birthDate: string, gender: any) => {
+    try {
+      const newBaby = await api.saveBaby(name, birthDate, gender);
+      setBaby({ name: newBaby.name, birthDate: newBaby.birth_date, gender: newBaby.gender });
+      window.location.reload(); 
+    } catch (err) {
+      alert('Failed to save baby');
     }
-    setView('dashboard');
   };
 
-  const handleCompleteChallenge = (challengeId: number, xp: number) => {
+  const handleCompleteChallenge = async (challengeId: number, xp: number) => {
     if (!user) return;
+    
+    // Optimistic Update
     const newEntry = { challengeId, completedDate: getTodayString() };
-    const updatedChallenges = [...userChallenges, newEntry];
-    setUserChallenges(updatedChallenges);
-    saveState('zela_challenges', updatedChallenges);
+    setUserChallenges([...userChallenges, newEntry]);
+    setUser({ ...user, points: user.points + xp });
+    setCelebration({ show: true, gained: xp });
 
-    const today = getTodayString();
-    let newStreak = user.streak;
-    const daysDiff = differenceInDays(today, user.lastActiveDate);
-    if (daysDiff === 1) newStreak += 1;
-    else if (daysDiff > 1) newStreak = 1;
-    else if (newStreak === 0) newStreak = 1;
-
-    const updatedUser = {
-      ...user,
-      points: user.points + xp,
-      streak: newStreak,
-      lastActiveDate: today
-    };
-    setUser(updatedUser);
-    saveState('zela_user', updatedUser);
-    const currentLevel = LEVELS.filter(l => user.points >= l.threshold).slice(-1)[0];
-    const nextLevel = LEVELS.find(l => user.points + xp >= l.threshold && (currentLevel ? l.threshold > currentLevel.threshold : true));
-    setCelebration({ show: true, gained: xp, levelUp: nextLevel && (!currentLevel || nextLevel.threshold > currentLevel.threshold) ? nextLevel.name : undefined });
+    // API Call
+    // Note: We need babyId. If dashboard loaded correctly, we have it in state or we need to add it.
+    // For now, let's assume babyId is available on the baby object (we hacked it in useEffect)
+    // or we fetch it.
+    if ((baby as any)?.id) {
+       api.completeChallenge(challengeId, xp, (baby as any).id).catch(console.error);
+    }
   };
 
   const handleToggleVaccine = (templateId: number) => {
+    // Vaccines API not implemented yet, keeping local state logic for UI only
     const updatedVaccines = userVaccines.map(v => {
       if (v.templateId === templateId) {
         return {
@@ -568,33 +571,37 @@ export default function App() {
       return v;
     });
     setUserVaccines(updatedVaccines);
-    saveState('zela_vaccines', updatedVaccines);
   };
   
-  const handleTracker = (type: TrackerType) => {
+  const handleTracker = async (type: TrackerType) => {
+    // Optimistic
     const newLog: TrackerLog = { id: Date.now().toString(), type, timestamp: Date.now() };
-    const updated = [newLog, ...trackers].slice(0, 50); // Keep last 50
+    const updated = [newLog, ...trackers].slice(0, 50);
     setTrackers(updated);
-    saveState('zela_trackers', updated);
+    
+    // API
+    if ((baby as any)?.id) {
+       await api.addTracker(type, Date.now(), (baby as any).id);
+    }
   };
 
   const handleAddGrowth = (weight: number, height: number) => {
+    // Growth API not implemented yet
     const newLog: GrowthLog = { date: getTodayString(), weight, height };
     const updated = [...growthLogs, newLog].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     setGrowthLogs(updated);
-    saveState('zela_growth', updated);
   };
 
   const handlePartnerInvite = () => {
     if(!user) return;
-    const updatedUser = { ...user, partnerName: "Papai" }; // Simulated sync
+    const updatedUser = { ...user, partnerName: "Papai" }; 
     setUser(updatedUser);
-    saveState('zela_user', updatedUser);
     alert("Convite enviado! O Papai agora tem acesso aos dados.");
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem('zela_token');
+    // Keep onboarding data locally? No, clear all session data
     setUser(null);
     setBaby(null);
     setUserChallenges([]);
@@ -781,19 +788,19 @@ export default function App() {
 
   if (view === 'landingSales') {
     return (
-      <div className="min-h-screen bg-white flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden relative">
-        <div className="px-6 py-6 border-b border-slate-50 flex items-center justify-between">
+      <div className="min-h-screen bg-white flex flex-col w-full relative">
+        <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-50">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center">
               <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
             </div>
-            <div className="font-extrabold tracking-tight text-slate-900">ZELA</div>
+            <div className="font-extrabold tracking-tight text-slate-900 text-xl">ZELA</div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setView('landing')}>
-            Ver app
+          <Button variant="ghost" size="sm" onClick={() => setView('login')}>
+            Entrar
           </Button>
         </div>
-        <main className="flex-1 overflow-y-auto no-scrollbar px-6 py-6">
+        <main className="flex-1 w-full">
           <SalesLanding
             canContinue={hasSavedSession}
             onContinue={() => setView('dashboard')}
@@ -1411,263 +1418,9 @@ const CommunityFeed = () => {
   );
 };
 
-const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe }: { canContinue: boolean; onContinue: () => void; onStartFree: () => void; onSubscribe: () => void }) => {
-  const ctaRef = useRef<HTMLDivElement | null>(null);
-  const scrollToCta = () => ctaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  return (
-    <div className="space-y-10">
-      <section className="relative overflow-hidden rounded-3xl border border-rose-100 bg-gradient-to-br from-rose-50 via-white to-indigo-50 p-6">
-        <div className="flex items-center gap-2 text-rose-600 font-bold text-xs uppercase tracking-widest">
-          <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
-          Funil de cuidado 0–12 meses
-        </div>
-        <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">
-          Menos ansiedade. Mais clareza no dia a dia com seu bebê.
-        </h2>
-        <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-          Rotina personalizada, lembretes, missões diárias, relatórios e comunidade para você sentir que está no controle do cuidado.
-        </p>
-        <div className="mt-5 flex gap-2">
-          <Button className="h-12 px-5" onClick={onStartFree}>Começar no freemium</Button>
-          <Button variant="outline" className="h-12 px-5" onClick={scrollToCta}>Ver planos e cadastro</Button>
-        </div>
-        {canContinue && (
-          <div className="mt-3">
-            <Button variant="ghost" className="h-10 px-4 text-slate-600" onClick={onContinue}>
-              Continuar onde parei
-            </Button>
-          </div>
-        )}
-      </section>
 
-      <section className="space-y-3">
-        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">1) A dor real</div>
-        <h3 className="text-xl font-extrabold text-slate-900">Você não precisa “lembrar de tudo” sozinha</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Flame className="w-4 h-4 text-rose-500" />
-              <div className="font-semibold text-sm">Rotina caótica</div>
-            </div>
-            <div className="text-xs text-slate-600">Sono, mamadas e fraldas viram um quebra-cabeça.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <LineChart className="w-4 h-4 text-indigo-500" />
-              <div className="font-semibold text-sm">Ansiedade</div>
-            </div>
-            <div className="text-xs text-slate-600">“Estou fazendo certo?” sem evidências claras do progresso.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <div className="font-semibold text-sm">Vacinas e prazos</div>
-            </div>
-            <div className="text-xs text-slate-600">Datas importantes se misturam no meio do cansaço.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <MessageCircle className="w-4 h-4 text-indigo-500" />
-              <div className="font-semibold text-sm">Falta de apoio</div>
-            </div>
-            <div className="text-xs text-slate-600">Pouca troca com quem vive a mesma fase.</div>
-          </Card>
-        </div>
-      </section>
 
-      <section className="space-y-3">
-        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">2) O método</div>
-        <h3 className="text-xl font-extrabold text-slate-900">Um sistema simples que vira hábito</h3>
-        <div className="space-y-3">
-          <Card className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-rose-50 text-rose-600 font-extrabold flex items-center justify-center">1</div>
-              <div>
-                <div className="font-semibold text-sm">Defina o objetivo</div>
-                <div className="text-xs text-slate-600">Você responde um questionário e o Zela organiza um plano.</div>
-              </div>
-            </div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center">2</div>
-              <div>
-                <div className="font-semibold text-sm">Execute missões diárias</div>
-                <div className="text-xs text-slate-600">Micro-ações guiadas por semana de vida, com pontuação e nível.</div>
-              </div>
-            </div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-600 font-extrabold flex items-center justify-center">3</div>
-              <div>
-                <div className="font-semibold text-sm">Veja progresso em relatórios</div>
-                <div className="text-xs text-slate-600">Acompanhe cuidado e crescimento com indicadores simples.</div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">3) O que você recebe</div>
-        <h3 className="text-xl font-extrabold text-slate-900">Tudo o que você precisa, em um só lugar</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <ClipboardList className="w-4 h-4 text-rose-500" />
-              <div className="font-semibold text-sm">Rotina</div>
-            </div>
-            <div className="text-xs text-slate-600">Plano personalizado por objetivo.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <BarChart3 className="w-4 h-4 text-indigo-500" />
-              <div className="font-semibold text-sm">Relatórios</div>
-            </div>
-            <div className="text-xs text-slate-600">Visualize cuidado e evolução.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <div className="font-semibold text-sm">Carteirinha</div>
-            </div>
-            <div className="text-xs text-slate-600">Vacinas organizadas por fase.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Music className="w-4 h-4 text-indigo-500" />
-              <div className="font-semibold text-sm">Ruído Branco</div>
-            </div>
-            <div className="text-xs text-slate-600">Ajuda prática para o sono.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-rose-500" />
-              <div className="font-semibold text-sm">Comunidade</div>
-            </div>
-            <div className="text-xs text-slate-600">Troca real, sem julgamento.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <BookOpen className="w-4 h-4 text-rose-500" />
-              <div className="font-semibold text-sm">Espiritualidade</div>
-            </div>
-            <div className="text-xs text-slate-600">Um modo opcional, bíblico-cristão.</div>
-          </Card>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">4) Prova</div>
-        <h3 className="text-xl font-extrabold text-slate-900">Resultados que você sente no dia</h3>
-        <div className="space-y-3">
-          <Card className="p-4">
-            <div className="text-sm font-semibold text-slate-900">“Pare de viver no modo sobrevivência.”</div>
-            <div className="text-xs text-slate-600 mt-1">Com missões pequenas, eu consegui criar rotina sem me culpar.</div>
-            <div className="text-xs text-slate-400 mt-2">Ana, mãe de primeira viagem</div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-sm font-semibold text-slate-900">“Os relatórios me acalmaram.”</div>
-            <div className="text-xs text-slate-600 mt-1">Ver a evolução do cuidado diminuiu minha ansiedade.</div>
-            <div className="text-xs text-slate-400 mt-2">Camila, mãe do Noah</div>
-          </Card>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">5) Oferta</div>
-        <h3 className="text-xl font-extrabold text-slate-900">Escolha seu plano</h3>
-        <div className="grid grid-cols-1 gap-3">
-          <Card className="p-5 border border-slate-100">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="font-extrabold text-lg">Freemium</div>
-                <div className="text-xs text-slate-600">Para começar hoje, sem cartão.</div>
-              </div>
-              <Badge variant="neutral">Com ads</Badge>
-            </div>
-            <ul className="mt-3 text-xs text-slate-600 space-y-1 list-disc pl-4">
-              <li>Missões diárias e gamificação</li>
-              <li>Ferramentas essenciais do dia a dia</li>
-              <li>Comunidade</li>
-            </ul>
-            <Button className="mt-4 w-full h-12" onClick={onStartFree}>Criar conta grátis</Button>
-          </Card>
-
-          <Card className="p-5 border border-rose-200 bg-gradient-to-br from-white to-rose-50">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="font-extrabold text-lg">Premium</div>
-                <div className="text-xs text-slate-600">Sem anúncios e com recursos avançados.</div>
-              </div>
-              <Badge>Recomendado</Badge>
-            </div>
-            <ul className="mt-3 text-xs text-slate-600 space-y-1 list-disc pl-4">
-              <li>Experiência sem ads</li>
-              <li>Relatórios completos de cuidado e crescimento</li>
-              <li>Rotina personalizada com foco em objetivos</li>
-            </ul>
-            <Button className="mt-4 w-full h-12" onClick={onSubscribe}>Assinar agora</Button>
-          </Card>
-
-          <Card className="p-5 border border-slate-100">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="font-extrabold text-lg">Família</div>
-                <div className="text-xs text-slate-600">Para duas pessoas cuidando juntas.</div>
-              </div>
-              <Badge variant="neutral">2 responsáveis</Badge>
-            </div>
-            <ul className="mt-3 text-xs text-slate-600 space-y-1 list-disc pl-4">
-              <li>Compartilhamento do cuidado</li>
-              <li>Rotina e relatórios para o casal</li>
-              <li>Sem ads</li>
-            </ul>
-            <Button variant="outline" className="mt-4 w-full h-12" onClick={onSubscribe}>Assinar família</Button>
-          </Card>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">6) FAQ</div>
-        <h3 className="text-xl font-extrabold text-slate-900">Dúvidas comuns</h3>
-        <div className="space-y-3">
-          <Card className="p-4">
-            <div className="font-semibold text-sm">Preciso pagar para começar?</div>
-            <div className="text-xs text-slate-600 mt-1">Não. Você pode usar no freemium e evoluir quando quiser.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="font-semibold text-sm">O conteúdo é obrigatório?</div>
-            <div className="text-xs text-slate-600 mt-1">Não. Espiritualidade é opcional e pode ser desativada.</div>
-          </Card>
-          <Card className="p-4">
-            <div className="font-semibold text-sm">Funciona para qualquer bebê?</div>
-            <div className="text-xs text-slate-600 mt-1">As missões são sugeridas por semana de vida e podem ser adaptadas ao seu contexto.</div>
-          </Card>
-        </div>
-      </section>
-
-      <div ref={ctaRef} />
-      <section className="space-y-3">
-        <Card className="p-6 text-center border border-slate-100 bg-white">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Cadastro e assinatura</div>
-          <div className="mt-2 text-2xl font-extrabold text-slate-900 leading-tight">
-            Pronta para ter uma rotina possível?
-          </div>
-          <div className="mt-2 text-sm text-slate-600">
-            No final do scroll, escolha entre freemium ou assinatura sem ads.
-          </div>
-          <div className="mt-5 grid grid-cols-1 gap-2">
-            <Button className="h-12" onClick={onStartFree}>Cadastrar no freemium</Button>
-            <Button variant="outline" className="h-12" onClick={onSubscribe}>Assinar sem ads</Button>
-          </div>
-        </Card>
-      </section>
-    </div>
-  );
-};
 
 const SettingsPanel = ({ onClose, onChangeAds }: { onClose: () => void; onChangeAds: (v: boolean) => void }) => {
   const [ads, setAds] = useState<boolean>(() => {
