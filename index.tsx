@@ -1067,10 +1067,12 @@ export default function App() {
                    <BookOpen className="w-4 h-4 mr-2" />
                    Espiritualidade
                  </Button>
-                 <Button variant="white" className="w-full" onClick={() => setView('admin')}>
-                   <Settings className="w-4 h-4 mr-2" />
-                   Admin
-                 </Button>
+                 {user?.email === 'admin@zela.com' && (
+                   <Button variant="white" className="w-full" onClick={() => setView('admin')}>
+                     <Settings className="w-4 h-4 mr-2" />
+                     Admin
+                   </Button>
+                 )}
                  <Button variant="white" className="w-full" onClick={() => setView('vaccines')}>
                    <Syringe className="w-4 h-4 mr-2" />
                    Carteirinha
