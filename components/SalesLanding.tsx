@@ -52,7 +52,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
         <div className="max-w-4xl mx-auto space-y-6 animate-[fadeIn_800ms_ease-out]">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-100/50 text-rose-600 font-bold text-xs uppercase tracking-widest mx-auto">
             <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
-            Funil de cuidado 0–12 meses
+            Guia Completo 0–12 meses
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1]">
             Menos ansiedade. <br className="hidden md:block"/>Mais clareza no dia a dia com seu bebê.
