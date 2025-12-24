@@ -455,6 +455,13 @@ export default function App() {
       api.getMe(token).then(async ({ user }) => {
         setUser(user);
         
+        // Admin Bypass
+        if (user.email === 'admin@zela.com') {
+          setView('admin');
+          setLoading(false);
+          return;
+        }
+
         try {
           // Load Dashboard Data (Baby, Trackers, Challenges)
           const data = await api.getDashboard();
@@ -516,6 +523,12 @@ export default function App() {
       localStorage.setItem('zela_token', token);
       setUser(user);
       
+      // Admin Bypass
+      if (user.email === 'admin@zela.com') {
+        setView('admin');
+        return;
+      }
+
       // Load Dashboard
       const data = await api.getDashboard();
       if (data.baby) {
@@ -876,6 +889,41 @@ export default function App() {
     );
   }
 
+  if (view === 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col w-full relative">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-white sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+              <Settings className="w-5 h-5 text-white" />
+            </div>
+            <div className="font-bold text-slate-900">Zela Admin</div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-500">
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
+        <main className="flex-1 p-6 pb-24">
+          <AdminPanel 
+            user={user} 
+            setUser={setUser}
+            challenges={userChallenges}
+            setChallenges={setUserChallenges}
+            plansConfigKey="zela_plans"
+            xpByCategory={xpByCategory}
+            setXpByCategory={setXpByCategory}
+            adminVaccines={adminVaccines}
+            setAdminVaccines={setAdminVaccines}
+            adminMissions={adminMissions}
+            setAdminMissions={setAdminMissions}
+            adminUsers={adminUsers}
+            setAdminUsers={setAdminUsers}
+          />
+        </main>
+      </div>
+    );
+  }
+
   // MAIN SHELL
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center">
@@ -1126,25 +1174,7 @@ export default function App() {
             </div>
           )}
 
-          {view === 'admin' && (
-            <div className="space-y-6">
-              <AdminPanel 
-                user={user} 
-                setUser={setUser}
-                challenges={userChallenges}
-                setChallenges={setUserChallenges}
-                plansConfigKey="zela_plans"
-                xpByCategory={xpByCategory}
-                setXpByCategory={setXpByCategory}
-                adminVaccines={adminVaccines}
-                setAdminVaccines={setAdminVaccines}
-                adminMissions={adminMissions}
-                setAdminMissions={setAdminMissions}
-                adminUsers={adminUsers}
-                setAdminUsers={setAdminUsers}
-              />
-            </div>
-          )}
+
 
 
           {view === 'settings' && (
