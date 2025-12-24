@@ -77,7 +77,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
       {/* PAIN POINTS (Carousel on Mobile) */}
       <section className="px-6 lg:px-20 max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-2">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">1) A dor real</div>
+          <div className="text-xs font-bold text-rose-500 uppercase tracking-widest">Desafios da Maternidade</div>
           <h3 className="text-3xl font-extrabold text-slate-900">Você não precisa “lembrar de tudo” sozinha</h3>
         </div>
         
@@ -117,7 +117,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
       <section className="bg-slate-50 py-16 px-6 lg:px-20">
         <div className="max-w-4xl mx-auto space-y-12">
            <div className="text-center space-y-2">
-             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">2) O método</div>
+             <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest">Nosso Método</div>
              <h3 className="text-3xl font-extrabold text-slate-900">Um sistema simples que vira hábito</h3>
            </div>
            
@@ -152,7 +152,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
       {/* FEATURES GRID */}
       <section className="px-6 lg:px-20 max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-2">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">3) O que você recebe</div>
+          <div className="text-xs font-bold text-emerald-500 uppercase tracking-widest">Funcionalidades</div>
           <h3 className="text-3xl font-extrabold text-slate-900">Tudo em um só lugar</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -178,7 +178,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
       {/* SOCIAL PROOF */}
       <section className="px-6 lg:px-20 max-w-4xl mx-auto space-y-8">
         <div className="text-center space-y-2">
-           <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">4) Prova</div>
+           <div className="text-xs font-bold text-amber-500 uppercase tracking-widest">Depoimentos</div>
            <h3 className="text-3xl font-extrabold text-slate-900">Quem usa, ama</h3>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
@@ -214,7 +214,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
       {/* PRICING */}
       <section ref={ctaRef} className="px-6 lg:px-20 max-w-5xl mx-auto space-y-8">
         <div className="text-center space-y-2">
-           <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">5) Oferta</div>
+           <div className="text-xs font-bold text-rose-500 uppercase tracking-widest">Planos</div>
            <h3 className="text-3xl font-extrabold text-slate-900">Escolha como começar</h3>
         </div>
         
