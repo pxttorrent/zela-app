@@ -218,17 +218,17 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
            <h3 className="text-3xl font-extrabold text-slate-900">Escolha como começar</h3>
         </div>
         
-        <div className="grid md:grid-cols-2 gap-6 items-start">
+        <div className="grid md:grid-cols-3 gap-6 items-start">
           {/* FREE */}
           <Card className="p-8 border-slate-200 hover:border-slate-300 transition-all">
             <div className="flex justify-between items-start mb-4">
                <div>
-                 <h3 className="text-2xl font-bold">Freemium</h3>
+                 <h3 className="text-2xl font-bold text-slate-900">Freemium</h3>
                  <p className="text-sm text-slate-500">Para conhecer.</p>
                </div>
                <Badge variant="neutral">Grátis</Badge>
             </div>
-            <div className="text-3xl font-bold mb-6">R$ 0 <span className="text-sm font-normal text-slate-500">/mês</span></div>
+            <div className="text-3xl font-bold mb-6 text-slate-900">R$ 0 <span className="text-sm font-normal text-slate-500">/mês</span></div>
             <ul className="space-y-3 mb-8">
               <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Missões diárias</li>
               <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Ferramentas essenciais</li>
@@ -240,26 +240,46 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
           </Card>
 
           {/* PREMIUM */}
-          <Card className="p-8 border-rose-500 shadow-xl relative overflow-hidden bg-slate-900 text-white">
+          <Card className="p-8 border-rose-200 bg-gradient-to-br from-white to-rose-50 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 uppercase tracking-widest">Recomendado</div>
             <div className="flex justify-between items-start mb-4">
                <div>
-                 <h3 className="text-2xl font-bold">Premium</h3>
-                 <p className="text-sm text-slate-400">Experiência completa.</p>
+                 <h3 className="text-2xl font-bold text-slate-900">Premium</h3>
+                 <p className="text-sm text-slate-500">Experiência completa.</p>
                </div>
             </div>
-            <div className="text-3xl font-bold mb-6">R$ 19,90 <span className="text-sm font-normal text-slate-400">/mês</span></div>
+            <div className="text-3xl font-bold mb-6 text-slate-900">R$ 19,90 <span className="text-sm font-normal text-slate-500">/mês</span></div>
             <ul className="space-y-3 mb-8">
-              <li className="flex items-center gap-2 text-sm"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Tudo do Free</li>
-              <li className="flex items-center gap-2 text-sm"><CheckCircle2 className="w-4 h-4 text-rose-500" /> <b>Sem anúncios</b></li>
-              <li className="flex items-center gap-2 text-sm"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Relatórios de crescimento</li>
-              <li className="flex items-center gap-2 text-sm"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Modo Dupla (Pai + Mãe)</li>
-              <li className="flex items-center gap-2 text-sm"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Rotina Personalizada</li>
+              <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Tudo do Free</li>
+              <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-rose-500" /> <b>Sem anúncios</b></li>
+              <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Relatórios completos</li>
+              <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Rotina Personalizada</li>
             </ul>
-            <Button className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white border-none shadow-lg shadow-rose-900/50" onClick={onSubscribe}>
+            <Button className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white border-none shadow-lg shadow-rose-200" onClick={onSubscribe}>
               Assinar Agora
             </Button>
             <p className="text-center text-[10px] text-slate-500 mt-4">Cancele quando quiser.</p>
+          </Card>
+
+          {/* FAMILY */}
+          <Card className="p-8 border-indigo-200 bg-gradient-to-br from-white to-indigo-50 shadow-lg relative overflow-hidden">
+             <div className="flex justify-between items-start mb-4">
+               <div>
+                 <h3 className="text-2xl font-bold text-slate-900">Família</h3>
+                 <p className="text-sm text-slate-500">Para o casal.</p>
+               </div>
+               <Badge className="bg-indigo-100 text-indigo-700">Dupla</Badge>
+            </div>
+            <div className="text-3xl font-bold mb-6 text-slate-900">R$ 29,90 <span className="text-sm font-normal text-slate-500">/mês</span></div>
+            <ul className="space-y-3 mb-8">
+              <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> Tudo do Premium</li>
+              <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> 2 Responsáveis (Pai + Mãe)</li>
+              <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> Dados sincronizados</li>
+              <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> Relatórios unificados</li>
+            </ul>
+            <Button className="w-full h-12 bg-indigo-500 hover:bg-indigo-600 text-white border-none shadow-lg shadow-indigo-200" onClick={onSubscribe}>
+              Assinar Família
+            </Button>
           </Card>
         </div>
       </section>
