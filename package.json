@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx server/index.ts",
+    "migrate:admin": "tsx migrate_admin.ts",
     "build": "vite build && tsc server/index.ts --esModuleInterop --outDir dist-server",
     "preview": "vite preview",
     "server": "node dist-server/server/index.js"

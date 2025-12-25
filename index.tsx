@@ -1651,7 +1651,7 @@ const AdminPanel = ({
                     <div className="p-2 bg-indigo-50 rounded-lg"><Users className="w-5 h-5 text-indigo-500" /></div>
                     <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">+5 hoje</span>
                   </div>
-                  <div className="text-3xl font-bold text-slate-900">{adminUsers.length + 142}</div>
+                  <div className="text-3xl font-bold text-slate-900">{adminUsers.length}</div>
                   <div className="text-xs text-slate-500 mt-1">Usuários Ativos</div>
                 </Card>
                 <Card className="p-6 bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all">
