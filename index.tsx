@@ -7,7 +7,7 @@ import {
   ChevronRight, Baby, Settings, LogOut, Check,
   Milk, Moon, Bath, MessageCircle, Play, Pause,
   LineChart, Plus, Users, Music, Activity, BookOpen, BarChart3, ClipboardList, LogIn,
-  TrendingUp, Search, MoreHorizontal, Trash2
+  TrendingUp, Search, MoreHorizontal, Trash2, Megaphone, Bell
  } from 'lucide-react';
 
 import { api } from './api';
@@ -83,6 +83,22 @@ interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+}
+
+interface Ad {
+  id: number;
+  title: string;
+  content: string;
+  actionUrl: string;
+  active: boolean;
+}
+
+interface PushNotification {
+  id: number;
+  title: string;
+  body: string;
+  sentAt: string;
+  audience: string;
 }
 
 // --- SEED DATA ---
@@ -444,11 +460,23 @@ export default function App() {
       { id: 3, name: 'Mariana Costa', email: 'mari@example.com', points: 45, partnerName: 'João' },
     ];
   });
+  const [adminAds, setAdminAds] = useState<Ad[]>(() => {
+    const saved = localStorage.getItem('zela_admin_ads');
+    return saved ? JSON.parse(saved) : [
+      { id: 1, title: 'Oferta Especial', content: 'Desconto em fraldas na loja parceira!', actionUrl: 'https://amazon.com.br', active: true }
+    ];
+  });
+  const [adminNotifications, setAdminNotifications] = useState<PushNotification[]>(() => {
+    const saved = localStorage.getItem('zela_admin_notifications');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // Persist Admin Data
   useEffect(() => { localStorage.setItem('zela_admin_vaccines', JSON.stringify(adminVaccines)); }, [adminVaccines]);
   useEffect(() => { localStorage.setItem('zela_admin_missions', JSON.stringify(adminMissions)); }, [adminMissions]);
   useEffect(() => { localStorage.setItem('zela_admin_users', JSON.stringify(adminUsers)); }, [adminUsers]);
+  useEffect(() => { localStorage.setItem('zela_admin_ads', JSON.stringify(adminAds)); }, [adminAds]);
+  useEffect(() => { localStorage.setItem('zela_admin_notifications', JSON.stringify(adminNotifications)); }, [adminNotifications]);
   const LEVELS = useMemo(() => [
     { name: 'Broto', threshold: 0 },
     { name: 'Ninho', threshold: 50 },
@@ -932,6 +960,10 @@ export default function App() {
             setAdminMissions={setAdminMissions}
             adminUsers={adminUsers}
             setAdminUsers={setAdminUsers}
+            adminAds={adminAds}
+            setAdminAds={setAdminAds}
+            adminNotifications={adminNotifications}
+            setAdminNotifications={setAdminNotifications}
             onLogout={handleLogout}
           />
         </main>
@@ -1032,7 +1064,7 @@ export default function App() {
               </div>
               
               {adsEnabled && (
-                <AdBox />
+                <AdBox ads={adminAds} />
               )}
 
               {/* CHALLENGES */}
@@ -1505,7 +1537,8 @@ const SettingsPanel = ({ onClose, onChangeAds }: { onClose: () => void; onChange
 
 const AdminPanel = ({ 
   user, setUser, challenges, setChallenges, plansConfigKey, xpByCategory, setXpByCategory,
-  adminVaccines, setAdminVaccines, adminMissions, setAdminMissions, adminUsers, setAdminUsers, onLogout
+  adminVaccines, setAdminVaccines, adminMissions, setAdminMissions, adminUsers, setAdminUsers, 
+  adminAds, setAdminAds, adminNotifications, setAdminNotifications, onLogout
 }: { 
   user: UserData | null; setUser: (u: UserData | null) => void; 
   challenges: UserChallenge[]; setChallenges: (c: UserChallenge[]) => void; 
@@ -1514,9 +1547,11 @@ const AdminPanel = ({
   adminVaccines: VaccineTemplate[]; setAdminVaccines: (v: VaccineTemplate[]) => void;
   adminMissions: Challenge[]; setAdminMissions: (c: Challenge[]) => void;
   adminUsers: UserData[]; setAdminUsers: (u: UserData[]) => void;
+  adminAds: Ad[]; setAdminAds: (a: Ad[]) => void;
+  adminNotifications: PushNotification[]; setAdminNotifications: (n: PushNotification[]) => void;
   onLogout: () => void;
 }) => {
-  const [tab, setTab] = useState<'dashboard' | 'users' | 'missions' | 'vaccines' | 'settings'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'users' | 'missions' | 'vaccines' | 'ads' | 'notifications' | 'settings'>('dashboard');
   const [priceMonthly, setPriceMonthly] = useState('19.90');
   const [priceAnnual, setPriceAnnual] = useState('149.90');
   const [localXp, setLocalXp] = useState<Record<ChallengeCategory, number>>(xpByCategory);
@@ -1532,6 +1567,12 @@ const AdminPanel = ({
 
   // New Vaccine State
   const [newVaccine, setNewVaccine] = useState({ name: '', daysFromBirth: 0, description: '' });
+
+  // New Ad State
+  const [newAd, setNewAd] = useState({ title: '', content: '', actionUrl: '', active: true });
+
+  // New Notification State
+  const [newPush, setNewPush] = useState({ title: '', body: '', audience: 'all' });
 
   return (
     <div className="flex h-full bg-slate-50 relative">
@@ -1557,6 +1598,8 @@ const AdminPanel = ({
             { id: 'users', label: 'Usuários', icon: Users },
             { id: 'missions', label: 'Conteúdo', icon: ClipboardList },
             { id: 'vaccines', label: 'Vacinas', icon: Syringe },
+            { id: 'ads', label: 'Propagandas', icon: Megaphone },
+            { id: 'notifications', label: 'Notificações', icon: Bell },
             { id: 'settings', label: 'Configurações', icon: Settings },
           ].map(item => (
             <button
@@ -1606,7 +1649,13 @@ const AdminPanel = ({
         <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-2xl font-bold text-slate-900 capitalize">
-              {tab === 'dashboard' ? 'Visão Geral' : tab === 'users' ? 'Gestão de Usuários' : tab === 'missions' ? 'Conteúdo & Missões' : tab === 'vaccines' ? 'Calendário Vacinal' : 'Configurações do Sistema'}
+              {tab === 'dashboard' ? 'Visão Geral' : 
+               tab === 'users' ? 'Gestão de Usuários' : 
+               tab === 'missions' ? 'Conteúdo & Missões' : 
+               tab === 'vaccines' ? 'Calendário Vacinal' : 
+               tab === 'ads' ? 'Gestão de Anúncios' : 
+               tab === 'notifications' ? 'Push Notifications' : 
+               'Configurações do Sistema'}
             </h1>
             <div className="text-sm text-slate-500">{new Date().toLocaleDateString()}</div>
           </div>
@@ -1895,6 +1944,173 @@ const AdminPanel = ({
             </div>
           )}
 
+          {tab === 'ads' && (
+            <div className="space-y-6 animate-[fadeIn_300ms]">
+              <Card className="p-6 bg-white border border-slate-200">
+                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-rose-500" /> Criar Novo Anúncio
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Título</label>
+                    <input 
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
+                      placeholder="Ex: Promoção de Fraldas" 
+                      value={newAd.title}
+                      onChange={e => setNewAd({...newAd, title: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Link de Ação</label>
+                    <input 
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
+                      placeholder="https://..." 
+                      value={newAd.actionUrl}
+                      onChange={e => setNewAd({...newAd, actionUrl: e.target.value})}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Conteúdo do Anúncio</label>
+                    <input 
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
+                      placeholder="Texto que aparecerá para o usuário..." 
+                      value={newAd.content}
+                      onChange={e => setNewAd({...newAd, content: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                   <Button className="h-10 px-6 bg-rose-500 hover:bg-rose-600 text-white" onClick={() => {
+                      if (newAd.title && newAd.content) {
+                        setAdminAds([...adminAds, { ...newAd, id: Date.now() }]);
+                        setNewAd({ title: '', content: '', actionUrl: '', active: true });
+                        showToast('Anúncio criado com sucesso!', 'success');
+                      }
+                    }}>Criar Anúncio</Button>
+                </div>
+              </Card>
+
+              <div className="space-y-4">
+                <h3 className="font-bold text-slate-900">Anúncios Ativos ({adminAds.length})</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {adminAds.map(ad => (
+                    <div key={ad.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative group">
+                       <div className="flex justify-between items-start mb-2">
+                         <Badge variant={ad.active ? 'success' : 'neutral'}>{ad.active ? 'Ativo' : 'Inativo'}</Badge>
+                         <button onClick={() => setAdminAds(adminAds.filter(x => x.id !== ad.id))} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                       </div>
+                       <h4 className="font-bold text-slate-900">{ad.title}</h4>
+                       <p className="text-sm text-slate-600 mt-1 mb-3">{ad.content}</p>
+                       <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50">
+                          <a href={ad.actionUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-500 font-medium hover:underline truncate max-w-[150px]">{ad.actionUrl}</a>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400">Status:</span>
+                            <div 
+                              onClick={() => setAdminAds(adminAds.map(x => x.id === ad.id ? { ...x, active: !x.active } : x))}
+                              className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${ad.active ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                            >
+                              <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${ad.active ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </div>
+                          </div>
+                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'notifications' && (
+            <div className="space-y-6 animate-[fadeIn_300ms]">
+               <Card className="p-6 bg-white border border-slate-200">
+                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-indigo-500" /> Enviar Notificação Push
+                </h3>
+                <div className="space-y-4">
+                   <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Título</label>
+                    <input 
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
+                      placeholder="Ex: Hora da Vacina!" 
+                      value={newPush.title}
+                      onChange={e => setNewPush({...newPush, title: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Mensagem</label>
+                    <textarea 
+                      className="w-full h-24 px-3 py-2 rounded-lg border border-slate-200 text-sm resize-none" 
+                      placeholder="Digite a mensagem..." 
+                      value={newPush.body}
+                      onChange={e => setNewPush({...newPush, body: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Público Alvo</label>
+                    <select 
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white"
+                      value={newPush.audience}
+                      onChange={e => setNewPush({...newPush, audience: e.target.value})}
+                    >
+                      <option value="all">Todos os Usuários</option>
+                      <option value="free">Apenas Freemium</option>
+                      <option value="premium">Apenas Premium</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <Button variant="outline" onClick={() => {
+                      if ('Notification' in window) {
+                        Notification.requestPermission().then(permission => {
+                          if (permission === 'granted') {
+                            new Notification(newPush.title || 'Teste', { body: newPush.body || 'Corpo do teste', icon: '/logo.png' });
+                            showToast('Notificação de teste enviada para este aparelho', 'success');
+                          } else {
+                            showToast('Permissão negada pelo navegador', 'error');
+                          }
+                        });
+                      } else {
+                        showToast('Navegador não suporta notificações', 'error');
+                      }
+                    }}>Testar no meu aparelho</Button>
+                    <Button className="bg-indigo-500 hover:bg-indigo-600 text-white" onClick={() => {
+                      if (newPush.title && newPush.body) {
+                        setAdminNotifications([{ ...newPush, id: Date.now(), sentAt: new Date().toISOString() }, ...adminNotifications]);
+                        setNewPush({ title: '', body: '', audience: 'all' });
+                        showToast(`Enviado para ${newPush.audience === 'all' ? 'todos' : newPush.audience} com sucesso!`, 'success');
+                      }
+                    }}>Enviar Push <Megaphone className="w-4 h-4 ml-2" /></Button>
+                  </div>
+                </div>
+               </Card>
+
+               <div className="space-y-4">
+                 <h3 className="font-bold text-slate-900">Histórico de Envios</h3>
+                 <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-500 font-medium">
+                        <tr>
+                          <th className="p-4">Data</th>
+                          <th className="p-4">Título</th>
+                          <th className="p-4">Mensagem</th>
+                          <th className="p-4">Público</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {adminNotifications.map(n => (
+                          <tr key={n.id}>
+                            <td className="p-4 text-slate-500">{new Date(n.sentAt).toLocaleString()}</td>
+                            <td className="p-4 font-bold text-slate-900">{n.title}</td>
+                            <td className="p-4 text-slate-600 truncate max-w-xs">{n.body}</td>
+                            <td className="p-4"><Badge variant="neutral">{n.audience}</Badge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                 </div>
+               </div>
+            </div>
+          )}
+
           {tab === 'settings' && (
             <div className="grid md:grid-cols-2 gap-6 animate-[fadeIn_300ms]">
               <Card className="p-6 space-y-6">
@@ -1951,13 +2167,30 @@ const AdminPanel = ({
   );
 };
 
-const AdBox = () => {
+const AdBox = ({ ads }: { ads?: Ad[] }) => {
+  if (!ads || ads.length === 0) return null;
+  
+  const activeAds = ads.filter(a => a.active);
+  if (activeAds.length === 0) return null;
+  const ad = activeAds[Math.floor(Math.random() * activeAds.length)];
+
   return (
-    <Card className="p-4 flex items-center justify-between">
-      <div className="text-sm">
-        Publicidade
+    <Card className="p-4 flex items-center justify-between relative overflow-hidden group">
+      <div className="absolute inset-0 bg-gradient-to-r from-rose-50 to-white opacity-50" />
+      <div className="relative z-10 flex-1 pr-4">
+        <div className="text-[10px] font-bold text-rose-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+           <Megaphone className="w-3 h-3" /> {ad.title}
+        </div>
+        <div className="text-sm font-medium text-slate-900 leading-tight">{ad.content}</div>
       </div>
-      <div className="text-xs text-slate-500">Conteúdo patrocinado</div>
+      <a 
+        href={ad.actionUrl} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="relative z-10 bg-white text-slate-900 text-xs font-bold px-3 py-2 rounded-lg shadow-sm border border-slate-100 hover:bg-slate-50 transition-all whitespace-nowrap"
+      >
+        Ver
+      </a>
     </Card>
   );
 };
