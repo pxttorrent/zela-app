@@ -80,5 +80,90 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to complete challenge');
     return res.json();
+  },
+
+  // --- ADMIN ---
+  admin: {
+    async getUsers() {
+      const res = await fetch(`${API_URL}/admin/users`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      return res.json();
+    },
+    
+    async getVaccines() {
+      const res = await fetch(`${API_URL}/admin/vaccines`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch vaccines');
+      return res.json();
+    },
+    async createVaccine(data: any) {
+      const res = await fetch(`${API_URL}/admin/vaccines`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to create vaccine');
+      return res.json();
+    },
+    async deleteVaccine(id: number) {
+      const res = await fetch(`${API_URL}/admin/vaccines/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (!res.ok) throw new Error('Failed to delete vaccine');
+      return res.json();
+    },
+
+    async getMissions() {
+      const res = await fetch(`${API_URL}/admin/missions`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch missions');
+      return res.json();
+    },
+    async createMission(data: any) {
+      const res = await fetch(`${API_URL}/admin/missions`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to create mission');
+      return res.json();
+    },
+    async deleteMission(id: number) {
+      const res = await fetch(`${API_URL}/admin/missions/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (!res.ok) throw new Error('Failed to delete mission');
+      return res.json();
+    },
+
+    async getAdConfig() {
+      const res = await fetch(`${API_URL}/admin/ads`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch ads config');
+      return res.json();
+    },
+    async updateAdConfig(config: any) {
+      const res = await fetch(`${API_URL}/admin/ads`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) throw new Error('Failed to update ads config');
+      return res.json();
+    },
+
+    async getPushHistory() {
+      const res = await fetch(`${API_URL}/admin/push`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch push history');
+      return res.json();
+    },
+    async sendPush(data: any) {
+      const res = await fetch(`${API_URL}/admin/push`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to send push');
+      return res.json();
+    },
   }
 };

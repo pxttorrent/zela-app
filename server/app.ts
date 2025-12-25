@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './auth.js';
 import dataRoutes from './data.js';
 import paymentRoutes from './payment.js';
+import adminRoutes from './admin.js';
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/data', dataRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

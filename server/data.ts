@@ -43,10 +43,15 @@ router.get('/dashboard', async (req: any, res) => {
     const challengesRes = await query('SELECT * FROM user_challenges WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20', [userId]);
     recentChallenges = challengesRes.rows;
 
+    // 4. Get Ad Config
+    const configRes = await query('SELECT ad_config FROM app_settings WHERE id = 1');
+    const adConfig = configRes.rows[0]?.ad_config || { enabled: false, clientId: '', slots: { dashboard: '' } };
+
     res.json({
       baby,
       trackers,
-      recentChallenges
+      recentChallenges,
+      adConfig
     });
   } catch (err) {
     console.error(err);

@@ -434,51 +434,12 @@ export default function App() {
   // New "Swiss Army Knife" State
   const [trackers, setTrackers] = useState<TrackerLog[]>([]);
   const [growthLogs, setGrowthLogs] = useState<GrowthLog[]>([]);
-  const [adsEnabled, setAdsEnabled] = useState<boolean>(() => {
-    const v = localStorage.getItem('zela_ads');
-    return v ? JSON.parse(v) : true;
-  });
+  const [adConfig, setAdConfig] = useState<AdConfig>({ enabled: false, clientId: '', slots: { dashboard: '' } });
   const [xpByCategory, setXpByCategory] = useState<Record<ChallengeCategory, number>>({
     afeto: 15, motor: 15, cognitivo: 15, nutricao: 15, sono: 15, saude_mae: 50
   });
 
-  // State for Admin Data
-  const [plansConfigKey, setPlansConfigKey] = useState(Date.now().toString());
-  const [adminVaccines, setAdminVaccines] = useState<VaccineTemplate[]>(() => {
-    const saved = localStorage.getItem('zela_admin_vaccines');
-    return saved ? JSON.parse(saved) : VACCINES_DB;
-  });
-  const [adminMissions, setAdminMissions] = useState<Challenge[]>(() => {
-    const saved = localStorage.getItem('zela_admin_missions');
-    return saved ? JSON.parse(saved) : CHALLENGES_DB;
-  });
-  const [adminUsers, setAdminUsers] = useState<UserData[]>(() => {
-    const saved = localStorage.getItem('zela_admin_users');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, name: 'Ana Silva', email: 'ana@example.com', points: 150, partnerName: 'Pedro' },
-      { id: 2, name: 'Carlos Santos', email: 'carlos@example.com', points: 320, partnerName: null },
-      { id: 3, name: 'Mariana Costa', email: 'mari@example.com', points: 45, partnerName: 'João' },
-    ];
-  });
-  const [adminAdConfig, setAdminAdConfig] = useState<AdConfig>(() => {
-    const saved = localStorage.getItem('zela_admin_ad_config');
-    return saved ? JSON.parse(saved) : {
-      enabled: true,
-      clientId: 'ca-pub-0000000000000000',
-      slots: { dashboard: '0000000000' }
-    };
-  });
-  const [adminNotifications, setAdminNotifications] = useState<PushNotification[]>(() => {
-    const saved = localStorage.getItem('zela_admin_notifications');
-    return saved ? JSON.parse(saved) : [];
-  });
 
-  // Persist Admin Data
-  useEffect(() => { localStorage.setItem('zela_admin_vaccines', JSON.stringify(adminVaccines)); }, [adminVaccines]);
-  useEffect(() => { localStorage.setItem('zela_admin_missions', JSON.stringify(adminMissions)); }, [adminMissions]);
-  useEffect(() => { localStorage.setItem('zela_admin_users', JSON.stringify(adminUsers)); }, [adminUsers]);
-  useEffect(() => { localStorage.setItem('zela_admin_ad_config', JSON.stringify(adminAdConfig)); }, [adminAdConfig]);
-  useEffect(() => { localStorage.setItem('zela_admin_notifications', JSON.stringify(adminNotifications)); }, [adminNotifications]);
   const LEVELS = useMemo(() => [
     { name: 'Broto', threshold: 0 },
     { name: 'Ninho', threshold: 50 },
@@ -507,8 +468,12 @@ export default function App() {
         }
 
         try {
-          // Load Dashboard Data (Baby, Trackers, Challenges)
+          // Load Dashboard Data (Baby, Trackers, Challenges, Config)
           const data = await api.getDashboard();
+          
+          if (data.adConfig) {
+            setAdConfig(data.adConfig);
+          }
           
           if (data.baby) {
             setBaby({
@@ -950,22 +915,6 @@ export default function App() {
         <main className="flex-1 p-6 pb-24">
           <AdminPanel 
             user={user} 
-            setUser={setUser}
-            challenges={userChallenges}
-            setChallenges={setUserChallenges}
-            plansConfigKey="zela_plans"
-            xpByCategory={xpByCategory}
-            setXpByCategory={setXpByCategory}
-            adminVaccines={adminVaccines}
-            setAdminVaccines={setAdminVaccines}
-            adminMissions={adminMissions}
-            setAdminMissions={setAdminMissions}
-            adminUsers={adminUsers}
-            setAdminUsers={setAdminUsers}
-            adminAdConfig={adminAdConfig}
-            setAdminAdConfig={setAdminAdConfig}
-            adminNotifications={adminNotifications}
-            setAdminNotifications={setAdminNotifications}
             onLogout={handleLogout}
           />
         </main>
@@ -1065,8 +1014,8 @@ export default function App() {
                 </Card>
               </div>
               
-              {adsEnabled && (
-                <AdBox config={adminAdConfig} />
+              {adConfig.enabled && (
+                <AdBox config={adConfig} />
               )}
 
               {/* CHALLENGES */}
@@ -1228,7 +1177,7 @@ export default function App() {
 
           {view === 'settings' && (
             <div className="space-y-6">
-              <SettingsPanel onClose={() => setView('profile')} onChangeAds={(v: boolean) => { setAdsEnabled(v); localStorage.setItem('zela_ads', JSON.stringify(v)); }} />
+              <SettingsPanel onClose={() => setView('profile')} onChangeAds={(v: boolean) => { setAdConfig({...adConfig, enabled: v}); }} />
             </div>
           )}
 
@@ -1538,31 +1487,57 @@ const SettingsPanel = ({ onClose, onChangeAds }: { onClose: () => void; onChange
 };
 
 const AdminPanel = ({ 
-  user, setUser, challenges, setChallenges, plansConfigKey, xpByCategory, setXpByCategory,
-  adminVaccines, setAdminVaccines, adminMissions, setAdminMissions, adminUsers, setAdminUsers, 
-  adminAdConfig, setAdminAdConfig, adminNotifications, setAdminNotifications, onLogout
+  user, 
+  onLogout
 }: { 
-  user: UserData | null; setUser: (u: UserData | null) => void; 
-  challenges: UserChallenge[]; setChallenges: (c: UserChallenge[]) => void; 
-  plansConfigKey: string; 
-  xpByCategory: Record<ChallengeCategory, number>; setXpByCategory: (v: Record<ChallengeCategory, number>) => void;
-  adminVaccines: VaccineTemplate[]; setAdminVaccines: (v: VaccineTemplate[]) => void;
-  adminMissions: Challenge[]; setAdminMissions: (c: Challenge[]) => void;
-  adminUsers: UserData[]; setAdminUsers: (u: UserData[]) => void;
-  adminAdConfig: AdConfig; setAdminAdConfig: (c: AdConfig) => void;
-  adminNotifications: PushNotification[]; setAdminNotifications: (n: PushNotification[]) => void;
+  user: UserData | null; 
   onLogout: () => void;
 }) => {
   const [tab, setTab] = useState<'dashboard' | 'users' | 'missions' | 'vaccines' | 'ads' | 'notifications' | 'settings'>('dashboard');
+  
+  // Data States
+  const [adminUsers, setAdminUsers] = useState<UserData[]>([]);
+  const [adminVaccines, setAdminVaccines] = useState<VaccineTemplate[]>([]);
+  const [adminMissions, setAdminMissions] = useState<Challenge[]>([]);
+  const [adminAdConfig, setAdminAdConfig] = useState<AdConfig>({ enabled: false, clientId: '', slots: { dashboard: '' } });
+  const [adminNotifications, setAdminNotifications] = useState<PushNotification[]>([]);
+  
   const [priceMonthly, setPriceMonthly] = useState('19.90');
   const [priceAnnual, setPriceAnnual] = useState('149.90');
-  const [localXp, setLocalXp] = useState<Record<ChallengeCategory, number>>(xpByCategory);
+  const [localXp, setLocalXp] = useState<Record<ChallengeCategory, number>>({
+    afeto: 15, motor: 15, cognitivo: 15, nutricao: 15, sono: 15, saude_mae: 50
+  });
+  
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  // Fetch Data on Mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [users, vaccines, missions, ads, push] = await Promise.all([
+          api.admin.getUsers(),
+          api.admin.getVaccines(),
+          api.admin.getMissions(),
+          api.admin.getAdConfig(),
+          api.admin.getPushHistory()
+        ]);
+        setAdminUsers(users);
+        setAdminVaccines(vaccines);
+        setAdminMissions(missions);
+        setAdminAdConfig(ads);
+        setAdminNotifications(push);
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao carregar dados do painel', 'error');
+      }
+    };
+    fetchData();
+  }, []);
 
   // New Mission State
   const [newMission, setNewMission] = useState({ title: '', description: '', category: 'afeto' as ChallengeCategory, minAgeWeeks: 0, durationMinutes: 5 });
@@ -1572,6 +1547,7 @@ const AdminPanel = ({
 
   // New Notification State
   const [newPush, setNewPush] = useState({ title: '', body: '', audience: 'all' });
+
 
   return (
     <div className="flex h-full bg-slate-50 relative">
@@ -1828,11 +1804,14 @@ const AdminPanel = ({
                         onChange={e => setNewMission({...newMission, description: e.target.value})}
                       />
                     </div>
-                    <Button className="w-full h-12 shadow-lg shadow-rose-200" onClick={() => {
+                    <Button className="w-full h-12 shadow-lg shadow-rose-200" onClick={async () => {
                       if (newMission.title && newMission.description) {
-                        setAdminMissions([...adminMissions, { ...newMission, id: Date.now(), maxAgeWeeks: 100, xpReward: 10 }]);
-                        setNewMission({ title: '', description: '', category: 'afeto', minAgeWeeks: 0, durationMinutes: 5 });
-                        showToast('Missão criada com sucesso!', 'success');
+                        try {
+                          const saved = await api.admin.createMission(newMission);
+                          setAdminMissions([saved, ...adminMissions]);
+                          setNewMission({ title: '', description: '', category: 'afeto', minAgeWeeks: 0, durationMinutes: 5 });
+                          showToast('Missão criada com sucesso!', 'success');
+                        } catch (e) { showToast('Erro ao criar missão', 'error'); }
                       }
                     }}>Publicar Missão</Button>
                   </div>
@@ -1904,11 +1883,14 @@ const AdminPanel = ({
                         onChange={e => setNewVaccine({...newVaccine, description: e.target.value})}
                     />
                   </div>
-                  <Button className="h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => {
+                  <Button className="h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={async () => {
                     if (newVaccine.name) {
-                      setAdminVaccines([...adminVaccines, { ...newVaccine, id: Date.now() }]);
-                      setNewVaccine({ name: '', daysFromBirth: 0, description: '' });
-                      showToast('Vacina adicionada!', 'success');
+                      try {
+                        const saved = await api.admin.createVaccine(newVaccine);
+                        setAdminVaccines([...adminVaccines, saved]);
+                        setNewVaccine({ name: '', daysFromBirth: 0, description: '' });
+                        showToast('Vacina adicionada!', 'success');
+                      } catch (e) { showToast('Erro ao salvar vacina', 'error'); }
                     }
                   }}>Salvar</Button>
                 </div>
@@ -1931,7 +1913,13 @@ const AdminPanel = ({
                         <td className="p-4 font-bold text-slate-900">{v.name}</td>
                         <td className="p-4 text-slate-500">{v.description}</td>
                         <td className="p-4 text-right">
-                          <button onClick={() => setAdminVaccines(adminVaccines.filter(x => x.id !== v.id))} className="text-slate-400 hover:text-rose-500 p-2 hover:bg-rose-50 rounded-lg transition-colors">
+                          <button onClick={async () => {
+                            try {
+                              await api.admin.deleteVaccine(v.id);
+                              setAdminVaccines(adminVaccines.filter(x => x.id !== v.id));
+                              showToast('Vacina removida', 'success');
+                            } catch (e) { showToast('Erro ao remover', 'error'); }
+                          }} className="text-slate-400 hover:text-rose-500 p-2 hover:bg-rose-50 rounded-lg transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
@@ -1990,7 +1978,12 @@ const AdminPanel = ({
                   </div>
 
                   <div className="pt-4 flex justify-end">
-                    <Button className="h-10 px-6 bg-rose-500 hover:bg-rose-600 text-white" onClick={() => showToast('Configurações de anúncios salvas!', 'success')}>
+                    <Button className="h-10 px-6 bg-rose-500 hover:bg-rose-600 text-white" onClick={async () => {
+                      try {
+                        await api.admin.updateAdConfig(adminAdConfig);
+                        showToast('Configurações de anúncios salvas!', 'success');
+                      } catch (e) { showToast('Erro ao salvar config', 'error'); }
+                    }}>
                       Salvar Configurações
                     </Button>
                   </div>
@@ -2051,11 +2044,14 @@ const AdminPanel = ({
                         showToast('Navegador não suporta notificações', 'error');
                       }
                     }}>Testar no meu aparelho</Button>
-                    <Button className="bg-indigo-500 hover:bg-indigo-600 text-white" onClick={() => {
+                    <Button className="bg-indigo-500 hover:bg-indigo-600 text-white" onClick={async () => {
                       if (newPush.title && newPush.body) {
-                        setAdminNotifications([{ ...newPush, id: Date.now(), sentAt: new Date().toISOString() }, ...adminNotifications]);
-                        setNewPush({ title: '', body: '', audience: 'all' });
-                        showToast(`Enviado para ${newPush.audience === 'all' ? 'todos' : newPush.audience} com sucesso!`, 'success');
+                        try {
+                          const saved = await api.admin.sendPush(newPush);
+                          setAdminNotifications([saved, ...adminNotifications]);
+                          setNewPush({ title: '', body: '', audience: 'all' });
+                          showToast(`Enviado para ${newPush.audience === 'all' ? 'todos' : newPush.audience} com sucesso!`, 'success');
+                        } catch (e) { showToast('Erro ao enviar push', 'error'); }
                       }
                     }}>Enviar Push <Megaphone className="w-4 h-4 ml-2" /></Button>
                   </div>
@@ -2115,7 +2111,10 @@ const AdminPanel = ({
                     </div>
                   ))}
                 </div>
-                <Button className="w-full h-12" onClick={() => { setXpByCategory(localXp); showToast('Configurações de XP salvas!', 'success'); }}>Salvar Alterações</Button>
+                <Button className="w-full h-12" onClick={() => { 
+                  // TODO: Implement XP Config API
+                  showToast('Configurações de XP salvas!', 'success'); 
+                }}>Salvar Alterações</Button>
               </Card>
 
               <Card className="p-6 space-y-6">
