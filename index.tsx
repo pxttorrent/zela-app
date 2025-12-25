@@ -428,13 +428,27 @@ export default function App() {
 
   // State for Admin Data
   const [plansConfigKey, setPlansConfigKey] = useState(Date.now().toString());
-  const [adminVaccines, setAdminVaccines] = useState<VaccineTemplate[]>(VACCINES_DB);
-  const [adminMissions, setAdminMissions] = useState<Challenge[]>(CHALLENGES_DB);
-  const [adminUsers, setAdminUsers] = useState<UserData[]>([
-    { id: 1, name: 'Ana Silva', email: 'ana@example.com', points: 150, partnerName: 'Pedro' },
-    { id: 2, name: 'Carlos Santos', email: 'carlos@example.com', points: 320, partnerName: null },
-    { id: 3, name: 'Mariana Costa', email: 'mari@example.com', points: 45, partnerName: 'João' },
-  ]);
+  const [adminVaccines, setAdminVaccines] = useState<VaccineTemplate[]>(() => {
+    const saved = localStorage.getItem('zela_admin_vaccines');
+    return saved ? JSON.parse(saved) : VACCINES_DB;
+  });
+  const [adminMissions, setAdminMissions] = useState<Challenge[]>(() => {
+    const saved = localStorage.getItem('zela_admin_missions');
+    return saved ? JSON.parse(saved) : CHALLENGES_DB;
+  });
+  const [adminUsers, setAdminUsers] = useState<UserData[]>(() => {
+    const saved = localStorage.getItem('zela_admin_users');
+    return saved ? JSON.parse(saved) : [
+      { id: 1, name: 'Ana Silva', email: 'ana@example.com', points: 150, partnerName: 'Pedro' },
+      { id: 2, name: 'Carlos Santos', email: 'carlos@example.com', points: 320, partnerName: null },
+      { id: 3, name: 'Mariana Costa', email: 'mari@example.com', points: 45, partnerName: 'João' },
+    ];
+  });
+
+  // Persist Admin Data
+  useEffect(() => { localStorage.setItem('zela_admin_vaccines', JSON.stringify(adminVaccines)); }, [adminVaccines]);
+  useEffect(() => { localStorage.setItem('zela_admin_missions', JSON.stringify(adminMissions)); }, [adminMissions]);
+  useEffect(() => { localStorage.setItem('zela_admin_users', JSON.stringify(adminUsers)); }, [adminUsers]);
   const LEVELS = useMemo(() => [
     { name: 'Broto', threshold: 0 },
     { name: 'Ninho', threshold: 50 },
@@ -918,6 +932,7 @@ export default function App() {
             setAdminMissions={setAdminMissions}
             adminUsers={adminUsers}
             setAdminUsers={setAdminUsers}
+            onLogout={handleLogout}
           />
         </main>
       </div>
@@ -1490,7 +1505,7 @@ const SettingsPanel = ({ onClose, onChangeAds }: { onClose: () => void; onChange
 
 const AdminPanel = ({ 
   user, setUser, challenges, setChallenges, plansConfigKey, xpByCategory, setXpByCategory,
-  adminVaccines, setAdminVaccines, adminMissions, setAdminMissions, adminUsers, setAdminUsers
+  adminVaccines, setAdminVaccines, adminMissions, setAdminMissions, adminUsers, setAdminUsers, onLogout
 }: { 
   user: UserData | null; setUser: (u: UserData | null) => void; 
   challenges: UserChallenge[]; setChallenges: (c: UserChallenge[]) => void; 
@@ -1499,11 +1514,18 @@ const AdminPanel = ({
   adminVaccines: VaccineTemplate[]; setAdminVaccines: (v: VaccineTemplate[]) => void;
   adminMissions: Challenge[]; setAdminMissions: (c: Challenge[]) => void;
   adminUsers: UserData[]; setAdminUsers: (u: UserData[]) => void;
+  onLogout: () => void;
 }) => {
   const [tab, setTab] = useState<'dashboard' | 'users' | 'missions' | 'vaccines' | 'settings'>('dashboard');
   const [priceMonthly, setPriceMonthly] = useState('19.90');
   const [priceAnnual, setPriceAnnual] = useState('149.90');
   const [localXp, setLocalXp] = useState<Record<ChallengeCategory, number>>(xpByCategory);
+  const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   // New Mission State
   const [newMission, setNewMission] = useState({ title: '', description: '', category: 'afeto' as ChallengeCategory, minAgeWeeks: 0, durationMinutes: 5 });
@@ -1512,217 +1534,419 @@ const AdminPanel = ({
   const [newVaccine, setNewVaccine] = useState({ name: '', daysFromBirth: 0, description: '' });
 
   return (
-    <div className="space-y-6">
-      <div className="flex overflow-x-auto gap-2 pb-2 no-scrollbar">
-        {['dashboard', 'users', 'missions', 'vaccines', 'settings'].map(t => (
-          <Button 
-            key={t} 
-            size="sm" 
-            variant={tab === t ? 'primary' : 'outline'} 
-            onClick={() => setTab(t as any)}
-            className="capitalize whitespace-nowrap"
-          >
-            {t === 'dashboard' ? 'Visão Geral' : t === 'users' ? 'Usuários' : t === 'missions' ? 'Conteúdo' : t === 'vaccines' ? 'Vacinas' : 'Config'}
-          </Button>
-        ))}
+    <div className="flex h-full bg-slate-50 relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[100] px-6 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-[slideIn_300ms] ${toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+          {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+          <span className="font-bold text-sm">{toast.msg}</span>
+        </div>
+      )}
+
+      {/* Sidebar */}
+      <div className="w-64 bg-slate-900 text-slate-300 flex-col hidden md:flex rounded-r-2xl shadow-xl z-10">
+        <div className="p-6">
+          <h2 className="text-white font-bold text-xl flex items-center gap-2">
+            <Settings className="w-6 h-6 text-rose-500" />
+            Zela Admin
+          </h2>
+        </div>
+        <nav className="flex-1 space-y-1 px-3">
+          {[
+            { id: 'dashboard', label: 'Visão Geral', icon: BarChart3 },
+            { id: 'users', label: 'Usuários', icon: Users },
+            { id: 'missions', label: 'Conteúdo', icon: ClipboardList },
+            { id: 'vaccines', label: 'Vacinas', icon: Syringe },
+            { id: 'settings', label: 'Configurações', icon: Settings },
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id as any)}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all ${
+                tab === item.id 
+                  ? 'bg-rose-500 text-white shadow-lg shadow-rose-900/50' 
+                  : 'hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="p-4 border-t border-slate-800 space-y-4">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">
+              A
+            </div>
+            <div className="text-xs">
+              <div className="text-white font-medium">Admin</div>
+              <div className="text-slate-500">admin@zela.com</div>
+            </div>
+          </div>
+          <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-400 text-xs font-bold transition-all">
+            <LogOut className="w-3 h-3" /> Sair
+          </button>
+        </div>
       </div>
 
-      {tab === 'dashboard' && (
-        <div className="space-y-4 animate-[fadeIn_300ms]">
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="p-4 bg-slate-900 text-white border-none">
-              <div className="text-xs text-slate-400">MRR (Mensal)</div>
-              <div className="text-2xl font-bold">R$ 4.290</div>
-              <div className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +12%</div>
-            </Card>
-            <Card className="p-4">
-              <div className="text-xs text-slate-500">Usuários Ativos</div>
-              <div className="text-2xl font-bold text-slate-900">{adminUsers.length + 142}</div>
-              <div className="text-[10px] text-emerald-500 mt-1 flex items-center gap-1"><User className="w-3 h-3" /> +5 hoje</div>
-            </Card>
-            <Card className="p-4">
-              <div className="text-xs text-slate-500">Assinantes</div>
-              <div className="text-2xl font-bold text-rose-500">89</div>
-              <div className="text-[10px] text-slate-400 mt-1">Taxa de conversão: 4.2%</div>
-            </Card>
-            <Card className="p-4">
-              <div className="text-xs text-slate-500">Churn</div>
-              <div className="text-2xl font-bold text-slate-900">1.2%</div>
-              <div className="text-[10px] text-emerald-500 mt-1">Baixo risco</div>
-            </Card>
+      {/* Content Area */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Mobile Header for Admin */}
+        <div className="md:hidden bg-slate-900 text-white p-4 flex items-center justify-between sticky top-0 z-20">
+           <span className="font-bold">Zela Admin</span>
+           <div className="flex gap-2">
+             {['dashboard', 'users', 'missions'].map(t => (
+               <button key={t} onClick={() => setTab(t as any)} className={`p-2 rounded-lg ${tab === t ? 'bg-rose-500' : 'bg-slate-800'}`}>
+                 {t === 'dashboard' ? <BarChart3 className="w-4 h-4" /> : t === 'users' ? <Users className="w-4 h-4" /> : <ClipboardList className="w-4 h-4" />}
+               </button>
+             ))}
+           </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-2xl font-bold text-slate-900 capitalize">
+              {tab === 'dashboard' ? 'Visão Geral' : tab === 'users' ? 'Gestão de Usuários' : tab === 'missions' ? 'Conteúdo & Missões' : tab === 'vaccines' ? 'Calendário Vacinal' : 'Configurações do Sistema'}
+            </h1>
+            <div className="text-sm text-slate-500">{new Date().toLocaleDateString()}</div>
           </div>
-          <Card className="p-4">
-            <div className="font-bold text-sm mb-3">Últimas Atividades</div>
-            <div className="space-y-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="flex items-center gap-3 text-xs">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-slate-600">Novo assinante Premium (Plano Anual)</span>
-                  <span className="ml-auto text-slate-400">há {i * 10}min</span>
+
+          {tab === 'dashboard' && (
+            <div className="space-y-6 animate-[fadeIn_300ms]">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="p-6 bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-emerald-50 rounded-lg"><TrendingUp className="w-5 h-5 text-emerald-500" /></div>
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">+12%</span>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900">R$ 4.290</div>
+                  <div className="text-xs text-slate-500 mt-1">MRR (Receita Mensal)</div>
+                </Card>
+                <Card className="p-6 bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-indigo-50 rounded-lg"><Users className="w-5 h-5 text-indigo-500" /></div>
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">+5 hoje</span>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900">{adminUsers.length + 142}</div>
+                  <div className="text-xs text-slate-500 mt-1">Usuários Ativos</div>
+                </Card>
+                <Card className="p-6 bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-rose-50 rounded-lg"><Star className="w-5 h-5 text-rose-500" /></div>
+                    <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full">4.2% Conv.</span>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900">89</div>
+                  <div className="text-xs text-slate-500 mt-1">Assinantes Premium</div>
+                </Card>
+                <Card className="p-6 bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-amber-50 rounded-lg"><Activity className="w-5 h-5 text-amber-500" /></div>
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Baixo</span>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900">1.2%</div>
+                  <div className="text-xs text-slate-500 mt-1">Churn Rate</div>
+                </Card>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card className="p-6 border border-slate-100">
+                  <h3 className="font-bold text-slate-900 mb-4">Últimas Vendas</h3>
+                  <div className="space-y-4">
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold">R$</div>
+                          <div>
+                            <div className="font-medium text-slate-900">Assinatura Anual</div>
+                            <div className="text-xs text-slate-500">há {i * 12} min</div>
+                          </div>
+                        </div>
+                        <div className="font-bold text-emerald-600">+ R$ 149,90</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <Card className="p-6 border border-slate-100">
+                  <h3 className="font-bold text-slate-900 mb-4">Novos Usuários</h3>
+                  <div className="space-y-4">
+                    {adminUsers.map(u => (
+                      <div key={u.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900">{u.name}</div>
+                            <div className="text-xs text-slate-500">{u.email}</div>
+                          </div>
+                        </div>
+                        <Badge variant="neutral">Grátis</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {tab === 'users' && (
+            <div className="space-y-4 animate-[fadeIn_300ms]">
+              <Card className="overflow-hidden border border-slate-200">
+                <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                   <div className="relative">
+                     <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                     <input className="pl-9 h-10 rounded-lg border border-slate-200 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="Buscar por nome ou email..." />
+                   </div>
+                   <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Adicionar Usuário</Button>
                 </div>
-              ))}
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-500 font-medium">
+                    <tr>
+                      <th className="p-4">Usuário</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4">Plano</th>
+                      <th className="p-4">Pontos</th>
+                      <th className="p-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {adminUsers.map(u => (
+                      <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4">
+                          <div className="font-bold text-slate-900">{u.name}</div>
+                          <div className="text-xs text-slate-500">{u.email}</div>
+                        </td>
+                        <td className="p-4"><Badge variant="success" className="bg-emerald-100 text-emerald-700">Ativo</Badge></td>
+                        <td className="p-4"><Badge variant="neutral">Free</Badge></td>
+                        <td className="p-4 font-mono text-slate-600">{u.points}</td>
+                        <td className="p-4 text-right">
+                          <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-900"><MoreHorizontal className="w-4 h-4" /></Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
             </div>
-          </Card>
-        </div>
-      )}
+          )}
 
-      {tab === 'users' && (
-        <div className="space-y-3 animate-[fadeIn_300ms]">
-          <div className="flex justify-between items-center">
-             <h3 className="font-bold">Base de Usuários</h3>
-             <Button size="sm" variant="outline"><Search className="w-4 h-4" /></Button>
-          </div>
-          {adminUsers.map(u => (
-            <Card key={u.id} className="p-4 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-sm">{u.name}</div>
-                <div className="text-xs text-slate-500">{u.email}</div>
-                <div className="text-[10px] text-slate-400 mt-1">Pontos: {u.points} • Parceiro: {u.partnerName || '-'}</div>
+          {tab === 'missions' && (
+            <div className="grid md:grid-cols-3 gap-6 animate-[fadeIn_300ms]">
+              <div className="md:col-span-1 space-y-6">
+                <Card className="p-6 space-y-4 bg-white border border-slate-200 shadow-sm sticky top-6">
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-rose-500" /> Nova Missão
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Título</label>
+                      <input 
+                        className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none" 
+                        placeholder="Ex: Banho de Sol" 
+                        value={newMission.title}
+                        onChange={e => setNewMission({...newMission, title: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Categoria</label>
+                      <select 
+                        className="w-full h-10 px-2 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                        value={newMission.category}
+                        onChange={e => setNewMission({...newMission, category: e.target.value as any})}
+                      >
+                        <option value="afeto">Afeto</option>
+                        <option value="motor">Motor</option>
+                        <option value="cognitivo">Cognitivo</option>
+                        <option value="sono">Sono</option>
+                        <option value="nutricao">Nutrição</option>
+                        <option value="saude_mae">Saúde Mãe</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Idade Mínima (Semanas)</label>
+                      <input 
+                          type="number" 
+                          className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none" 
+                          value={newMission.minAgeWeeks}
+                          onChange={e => setNewMission({...newMission, minAgeWeeks: parseInt(e.target.value)})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Descrição</label>
+                      <textarea 
+                        className="w-full h-32 px-3 py-2 rounded-lg border border-slate-200 text-sm resize-none focus:ring-2 focus:ring-rose-500 focus:outline-none" 
+                        placeholder="Explique como realizar a missão..." 
+                        value={newMission.description}
+                        onChange={e => setNewMission({...newMission, description: e.target.value})}
+                      />
+                    </div>
+                    <Button className="w-full h-12 shadow-lg shadow-rose-200" onClick={() => {
+                      if (newMission.title && newMission.description) {
+                        setAdminMissions([...adminMissions, { ...newMission, id: Date.now(), maxAgeWeeks: 100, xpReward: 10 }]);
+                        setNewMission({ title: '', description: '', category: 'afeto', minAgeWeeks: 0, durationMinutes: 5 });
+                        showToast('Missão criada com sucesso!', 'success');
+                      }
+                    }}>Publicar Missão</Button>
+                  </div>
+                </Card>
               </div>
-              <div className="flex gap-2">
-                 <Button size="sm" variant="ghost" className="text-slate-400"><MoreHorizontal className="w-4 h-4" /></Button>
+
+              <div className="md:col-span-2 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-slate-900">Biblioteca de Missões ({adminMissions.length})</h3>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline">Filtrar</Button>
+                    <Button size="sm" variant="outline">Exportar</Button>
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  {adminMissions.slice().reverse().map(m => (
+                    <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex justify-between items-start hover:border-rose-200 transition-all group">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="neutral" className="text-[10px] uppercase tracking-wider">{m.category}</Badge>
+                          <span className="text-[10px] text-slate-400 font-medium">+{m.minAgeWeeks} semanas</span>
+                        </div>
+                        <div className="font-bold text-slate-900">{m.title}</div>
+                        <div className="text-xs text-slate-500 mt-1 line-clamp-2 max-w-md">{m.description}</div>
+                      </div>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-indigo-500"><Settings className="w-4 h-4" /></Button>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-rose-500"><Trash2 className="w-4 h-4" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {tab === 'missions' && (
-        <div className="space-y-4 animate-[fadeIn_300ms]">
-          <Card className="p-4 space-y-3 bg-slate-50 border-slate-200">
-            <div className="font-bold text-sm">Criar Nova Missão</div>
-            <input 
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
-              placeholder="Título da missão" 
-              value={newMission.title}
-              onChange={e => setNewMission({...newMission, title: e.target.value})}
-            />
-            <textarea 
-              className="w-full h-20 px-3 py-2 rounded-lg border border-slate-200 text-sm resize-none" 
-              placeholder="Descrição detalhada..." 
-              value={newMission.description}
-              onChange={e => setNewMission({...newMission, description: e.target.value})}
-            />
-            <div className="grid grid-cols-2 gap-2">
-               <select 
-                 className="h-10 px-2 rounded-lg border border-slate-200 text-sm bg-white"
-                 value={newMission.category}
-                 onChange={e => setNewMission({...newMission, category: e.target.value as any})}
-               >
-                 <option value="afeto">Afeto</option>
-                 <option value="motor">Motor</option>
-                 <option value="cognitivo">Cognitivo</option>
-                 <option value="sono">Sono</option>
-                 <option value="nutricao">Nutrição</option>
-                 <option value="saude_mae">Saúde Mãe</option>
-               </select>
-               <input 
-                  type="number" 
-                  className="h-10 px-3 rounded-lg border border-slate-200 text-sm" 
-                  placeholder="Min (sem)" 
-                  value={newMission.minAgeWeeks}
-                  onChange={e => setNewMission({...newMission, minAgeWeeks: parseInt(e.target.value)})}
-               />
             </div>
-            <Button className="w-full" onClick={() => {
-              if (newMission.title && newMission.description) {
-                setAdminMissions([...adminMissions, { ...newMission, id: Date.now(), maxAgeWeeks: 100, xpReward: 10 }]);
-                setNewMission({ title: '', description: '', category: 'afeto', minAgeWeeks: 0, durationMinutes: 5 });
-                alert('Missão criada com sucesso!');
-              }
-            }}>Adicionar ao App</Button>
-          </Card>
+          )}
 
-          <div className="space-y-2">
-            <h3 className="font-bold text-xs uppercase text-slate-400 tracking-wider">Missões Ativas ({adminMissions.length})</h3>
-            {adminMissions.slice().reverse().map(m => (
-               <div key={m.id} className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
-                 <div>
-                   <div className="font-bold text-sm">{m.title}</div>
-                   <div className="text-[10px] text-slate-500 line-clamp-1">{m.description}</div>
-                 </div>
-                 <Badge variant="neutral" className="text-[10px]">{m.category}</Badge>
-               </div>
-            ))}
-          </div>
-        </div>
-      )}
+          {tab === 'vaccines' && (
+            <div className="space-y-6 animate-[fadeIn_300ms]">
+              <Card className="p-6 bg-white border border-slate-200">
+                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-emerald-500" /> Adicionar Nova Vacina
+                </h3>
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Nome da Vacina</label>
+                    <input 
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
+                      placeholder="Ex: BCG" 
+                      value={newVaccine.name}
+                      onChange={e => setNewVaccine({...newVaccine, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="w-32">
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Dias (Idade)</label>
+                    <input 
+                        type="number" 
+                        className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
+                        placeholder="0" 
+                        value={newVaccine.daysFromBirth || ''}
+                        onChange={e => setNewVaccine({...newVaccine, daysFromBirth: parseInt(e.target.value)})}
+                    />
+                  </div>
+                  <div className="flex-[2]">
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Descrição</label>
+                    <input 
+                        className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
+                        placeholder="Protege contra..." 
+                        value={newVaccine.description}
+                        onChange={e => setNewVaccine({...newVaccine, description: e.target.value})}
+                    />
+                  </div>
+                  <Button className="h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white" onClick={() => {
+                    if (newVaccine.name) {
+                      setAdminVaccines([...adminVaccines, { ...newVaccine, id: Date.now() }]);
+                      setNewVaccine({ name: '', daysFromBirth: 0, description: '' });
+                      showToast('Vacina adicionada!', 'success');
+                    }
+                  }}>Salvar</Button>
+                </div>
+              </Card>
 
-      {tab === 'vaccines' && (
-        <div className="space-y-4 animate-[fadeIn_300ms]">
-          <Card className="p-4 space-y-3 bg-slate-50 border-slate-200">
-            <div className="font-bold text-sm">Adicionar Vacina</div>
-            <input 
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
-              placeholder="Nome da Vacina" 
-              value={newVaccine.name}
-              onChange={e => setNewVaccine({...newVaccine, name: e.target.value})}
-            />
-            <div className="grid grid-cols-2 gap-2">
-               <input 
-                  type="number" 
-                  className="h-10 px-3 rounded-lg border border-slate-200 text-sm" 
-                  placeholder="Dias após nascimento" 
-                  value={newVaccine.daysFromBirth || ''}
-                  onChange={e => setNewVaccine({...newVaccine, daysFromBirth: parseInt(e.target.value)})}
-               />
-               <input 
-                  className="h-10 px-3 rounded-lg border border-slate-200 text-sm" 
-                  placeholder="Descrição curta" 
-                  value={newVaccine.description}
-                  onChange={e => setNewVaccine({...newVaccine, description: e.target.value})}
-               />
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-500 font-medium">
+                    <tr>
+                      <th className="p-4">Idade</th>
+                      <th className="p-4">Vacina</th>
+                      <th className="p-4">Descrição</th>
+                      <th className="p-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {adminVaccines.sort((a,b) => a.daysFromBirth - b.daysFromBirth).map(v => (
+                      <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 font-mono text-slate-600">{v.daysFromBirth} dias</td>
+                        <td className="p-4 font-bold text-slate-900">{v.name}</td>
+                        <td className="p-4 text-slate-500">{v.description}</td>
+                        <td className="p-4 text-right">
+                          <button onClick={() => setAdminVaccines(adminVaccines.filter(x => x.id !== v.id))} className="text-slate-400 hover:text-rose-500 p-2 hover:bg-rose-50 rounded-lg transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <Button className="w-full" onClick={() => {
-              if (newVaccine.name) {
-                setAdminVaccines([...adminVaccines, { ...newVaccine, id: Date.now() }]);
-                setNewVaccine({ name: '', daysFromBirth: 0, description: '' });
-                alert('Vacina adicionada ao calendário!');
-              }
-            }}>Salvar Vacina</Button>
-          </Card>
+          )}
 
-          <div className="space-y-2">
-            <h3 className="font-bold text-xs uppercase text-slate-400 tracking-wider">Calendário Nacional ({adminVaccines.length})</h3>
-            {adminVaccines.sort((a,b) => a.daysFromBirth - b.daysFromBirth).map(v => (
-               <div key={v.id} className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
-                 <div>
-                   <div className="font-bold text-sm">{v.name}</div>
-                   <div className="text-[10px] text-slate-500">{v.daysFromBirth} dias • {v.description}</div>
-                 </div>
-                 <button onClick={() => setAdminVaccines(adminVaccines.filter(x => x.id !== v.id))} className="text-slate-400 hover:text-rose-500">
-                   <Trash2 className="w-4 h-4" />
-                 </button>
-               </div>
-            ))}
-          </div>
-        </div>
-      )}
+          {tab === 'settings' && (
+            <div className="grid md:grid-cols-2 gap-6 animate-[fadeIn_300ms]">
+              <Card className="p-6 space-y-6">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                  <div className="p-2 bg-indigo-50 rounded-lg"><Activity className="w-5 h-5 text-indigo-500" /></div>
+                  <div>
+                    <h3 className="font-bold text-slate-900">Gamificação & XP</h3>
+                    <p className="text-xs text-slate-500">Calibre a dificuldade do app</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.keys(localXp).map((cat) => (
+                    <div key={cat}>
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">{cat}</label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm font-mono" 
+                          value={localXp[cat as ChallengeCategory]} 
+                          onChange={(e) => setLocalXp({ ...localXp, [cat]: parseInt(e.target.value || '0') })} 
+                        />
+                        <span className="text-xs text-slate-400">pts</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button className="w-full h-12" onClick={() => { setXpByCategory(localXp); showToast('Configurações de XP salvas!', 'success'); }}>Salvar Alterações</Button>
+              </Card>
 
-      {tab === 'settings' && (
-        <div className="space-y-4 animate-[fadeIn_300ms]">
-          <Card className="p-4 space-y-3">
-            <div className="font-semibold">Preços da Assinatura</div>
-            <div className="grid grid-cols-2 gap-3">
-              <input className="h-12 px-4 rounded-xl border border-slate-200" value={priceMonthly} onChange={(e) => setPriceMonthly(e.target.value)} />
-              <input className="h-12 px-4 rounded-xl border border-slate-200" value={priceAnnual} onChange={(e) => setPriceAnnual(e.target.value)} />
+              <Card className="p-6 space-y-6">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                  <div className="p-2 bg-emerald-50 rounded-lg"><TrendingUp className="w-5 h-5 text-emerald-500" /></div>
+                  <div>
+                    <h3 className="font-bold text-slate-900">Preços & Planos</h3>
+                    <p className="text-xs text-slate-500">Controle do Stripe</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Mensal (R$)</label>
+                    <input className="w-full h-12 px-4 rounded-xl border border-slate-200 text-lg font-bold" value={priceMonthly} onChange={(e) => setPriceMonthly(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Anual (R$)</label>
+                    <input className="w-full h-12 px-4 rounded-xl border border-slate-200 text-lg font-bold" value={priceAnnual} onChange={(e) => setPriceAnnual(e.target.value)} />
+                  </div>
+                  <Button variant="outline" className="w-full h-12" onClick={() => showToast('Sincronizando com Stripe...', 'success')}>Sincronizar com Stripe</Button>
+                </div>
+              </Card>
             </div>
-            <Button className="w-full">Atualizar Stripe (Simulado)</Button>
-          </Card>
-          <Card className="p-4 space-y-3">
-            <div className="font-semibold">Calibragem de XP</div>
-            <div className="grid grid-cols-3 gap-3">
-              <input className="h-12 px-4 rounded-xl border border-slate-200" value={localXp.afeto} onChange={(e) => setLocalXp({ ...localXp, afeto: parseInt(e.target.value || '0') })} />
-              <input className="h-12 px-4 rounded-xl border border-slate-200" value={localXp.motor} onChange={(e) => setLocalXp({ ...localXp, motor: parseInt(e.target.value || '0') })} />
-              <input className="h-12 px-4 rounded-xl border border-slate-200" value={localXp.cognitivo} onChange={(e) => setLocalXp({ ...localXp, cognitivo: parseInt(e.target.value || '0') })} />
-              <input className="h-12 px-4 rounded-xl border border-slate-200" value={localXp.nutricao} onChange={(e) => setLocalXp({ ...localXp, nutricao: parseInt(e.target.value || '0') })} />
-              <input className="h-12 px-4 rounded-xl border border-slate-200" value={localXp.sono} onChange={(e) => setLocalXp({ ...localXp, sono: parseInt(e.target.value || '0') })} />
-              <input className="h-12 px-4 rounded-xl border border-slate-200" value={localXp.saude_mae} onChange={(e) => setLocalXp({ ...localXp, saude_mae: parseInt(e.target.value || '0') })} />
-            </div>
-            <Button className="w-full" onClick={() => setXpByCategory(localXp)}>Aplicar Mudanças</Button>
-          </Card>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
