@@ -85,12 +85,12 @@ interface ChatMessage {
   text: string;
 }
 
-interface Ad {
-  id: number;
-  title: string;
-  content: string;
-  actionUrl: string;
-  active: boolean;
+interface AdConfig {
+  enabled: boolean;
+  clientId: string; // ca-pub-XXXXXXXXXXXXXXXX
+  slots: {
+    dashboard: string; // Slot ID for dashboard banner
+  };
 }
 
 interface PushNotification {
@@ -460,11 +460,13 @@ export default function App() {
       { id: 3, name: 'Mariana Costa', email: 'mari@example.com', points: 45, partnerName: 'João' },
     ];
   });
-  const [adminAds, setAdminAds] = useState<Ad[]>(() => {
-    const saved = localStorage.getItem('zela_admin_ads');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, title: 'Oferta Especial', content: 'Desconto em fraldas na loja parceira!', actionUrl: 'https://amazon.com.br', active: true }
-    ];
+  const [adminAdConfig, setAdminAdConfig] = useState<AdConfig>(() => {
+    const saved = localStorage.getItem('zela_admin_ad_config');
+    return saved ? JSON.parse(saved) : {
+      enabled: true,
+      clientId: 'ca-pub-0000000000000000',
+      slots: { dashboard: '0000000000' }
+    };
   });
   const [adminNotifications, setAdminNotifications] = useState<PushNotification[]>(() => {
     const saved = localStorage.getItem('zela_admin_notifications');
@@ -475,7 +477,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('zela_admin_vaccines', JSON.stringify(adminVaccines)); }, [adminVaccines]);
   useEffect(() => { localStorage.setItem('zela_admin_missions', JSON.stringify(adminMissions)); }, [adminMissions]);
   useEffect(() => { localStorage.setItem('zela_admin_users', JSON.stringify(adminUsers)); }, [adminUsers]);
-  useEffect(() => { localStorage.setItem('zela_admin_ads', JSON.stringify(adminAds)); }, [adminAds]);
+  useEffect(() => { localStorage.setItem('zela_admin_ad_config', JSON.stringify(adminAdConfig)); }, [adminAdConfig]);
   useEffect(() => { localStorage.setItem('zela_admin_notifications', JSON.stringify(adminNotifications)); }, [adminNotifications]);
   const LEVELS = useMemo(() => [
     { name: 'Broto', threshold: 0 },
@@ -960,8 +962,8 @@ export default function App() {
             setAdminMissions={setAdminMissions}
             adminUsers={adminUsers}
             setAdminUsers={setAdminUsers}
-            adminAds={adminAds}
-            setAdminAds={setAdminAds}
+            adminAdConfig={adminAdConfig}
+            setAdminAdConfig={setAdminAdConfig}
             adminNotifications={adminNotifications}
             setAdminNotifications={setAdminNotifications}
             onLogout={handleLogout}
@@ -1064,7 +1066,7 @@ export default function App() {
               </div>
               
               {adsEnabled && (
-                <AdBox ads={adminAds} />
+                <AdBox config={adminAdConfig} />
               )}
 
               {/* CHALLENGES */}
@@ -1538,7 +1540,7 @@ const SettingsPanel = ({ onClose, onChangeAds }: { onClose: () => void; onChange
 const AdminPanel = ({ 
   user, setUser, challenges, setChallenges, plansConfigKey, xpByCategory, setXpByCategory,
   adminVaccines, setAdminVaccines, adminMissions, setAdminMissions, adminUsers, setAdminUsers, 
-  adminAds, setAdminAds, adminNotifications, setAdminNotifications, onLogout
+  adminAdConfig, setAdminAdConfig, adminNotifications, setAdminNotifications, onLogout
 }: { 
   user: UserData | null; setUser: (u: UserData | null) => void; 
   challenges: UserChallenge[]; setChallenges: (c: UserChallenge[]) => void; 
@@ -1547,7 +1549,7 @@ const AdminPanel = ({
   adminVaccines: VaccineTemplate[]; setAdminVaccines: (v: VaccineTemplate[]) => void;
   adminMissions: Challenge[]; setAdminMissions: (c: Challenge[]) => void;
   adminUsers: UserData[]; setAdminUsers: (u: UserData[]) => void;
-  adminAds: Ad[]; setAdminAds: (a: Ad[]) => void;
+  adminAdConfig: AdConfig; setAdminAdConfig: (c: AdConfig) => void;
   adminNotifications: PushNotification[]; setAdminNotifications: (n: PushNotification[]) => void;
   onLogout: () => void;
 }) => {
@@ -1567,9 +1569,6 @@ const AdminPanel = ({
 
   // New Vaccine State
   const [newVaccine, setNewVaccine] = useState({ name: '', daysFromBirth: 0, description: '' });
-
-  // New Ad State
-  const [newAd, setNewAd] = useState({ title: '', content: '', actionUrl: '', active: true });
 
   // New Notification State
   const [newPush, setNewPush] = useState({ title: '', body: '', audience: 'all' });
@@ -1947,76 +1946,56 @@ const AdminPanel = ({
           {tab === 'ads' && (
             <div className="space-y-6 animate-[fadeIn_300ms]">
               <Card className="p-6 bg-white border border-slate-200">
-                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Megaphone className="w-4 h-4 text-rose-500" /> Criar Novo Anúncio
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+                  <div className="p-2 bg-rose-50 rounded-lg"><Megaphone className="w-5 h-5 text-rose-500" /></div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Título</label>
-                    <input 
-                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
-                      placeholder="Ex: Promoção de Fraldas" 
-                      value={newAd.title}
-                      onChange={e => setNewAd({...newAd, title: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Link de Ação</label>
-                    <input 
-                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
-                      placeholder="https://..." 
-                      value={newAd.actionUrl}
-                      onChange={e => setNewAd({...newAd, actionUrl: e.target.value})}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Conteúdo do Anúncio</label>
-                    <input 
-                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm" 
-                      placeholder="Texto que aparecerá para o usuário..." 
-                      value={newAd.content}
-                      onChange={e => setNewAd({...newAd, content: e.target.value})}
-                    />
+                    <h3 className="font-bold text-slate-900">Configuração de Anúncios (AdSense/AdMob)</h3>
+                    <p className="text-xs text-slate-500">Gerencie os blocos de anúncios do app</p>
                   </div>
                 </div>
-                <div className="mt-4 flex justify-end">
-                   <Button className="h-10 px-6 bg-rose-500 hover:bg-rose-600 text-white" onClick={() => {
-                      if (newAd.title && newAd.content) {
-                        setAdminAds([...adminAds, { ...newAd, id: Date.now() }]);
-                        setNewAd({ title: '', content: '', actionUrl: '', active: true });
-                        showToast('Anúncio criado com sucesso!', 'success');
-                      }
-                    }}>Criar Anúncio</Button>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl mb-6">
+                  <span className="text-sm font-bold text-slate-700">Ativar Anúncios no App</span>
+                  <div 
+                    onClick={() => setAdminAdConfig({ ...adminAdConfig, enabled: !adminAdConfig.enabled })}
+                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${adminAdConfig.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${adminAdConfig.enabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Google Ad Client ID</label>
+                    <input 
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm font-mono" 
+                      placeholder="ca-pub-XXXXXXXXXXXXXXXX" 
+                      value={adminAdConfig.clientId}
+                      onChange={e => setAdminAdConfig({...adminAdConfig, clientId: e.target.value})}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Encontrado no seu painel do AdSense/AdMob.</p>
+                  </div>
+                  
+                  <div className="pt-4 border-t border-slate-100">
+                    <h4 className="font-bold text-slate-900 mb-3 text-sm">Blocos de Anúncios (Slots)</h4>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Dashboard Banner ID</label>
+                      <input 
+                        className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm font-mono" 
+                        placeholder="1234567890" 
+                        value={adminAdConfig.slots.dashboard}
+                        onChange={e => setAdminAdConfig({...adminAdConfig, slots: { ...adminAdConfig.slots, dashboard: e.target.value }})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex justify-end">
+                    <Button className="h-10 px-6 bg-rose-500 hover:bg-rose-600 text-white" onClick={() => showToast('Configurações de anúncios salvas!', 'success')}>
+                      Salvar Configurações
+                    </Button>
+                  </div>
                 </div>
               </Card>
-
-              <div className="space-y-4">
-                <h3 className="font-bold text-slate-900">Anúncios Ativos ({adminAds.length})</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {adminAds.map(ad => (
-                    <div key={ad.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative group">
-                       <div className="flex justify-between items-start mb-2">
-                         <Badge variant={ad.active ? 'success' : 'neutral'}>{ad.active ? 'Ativo' : 'Inativo'}</Badge>
-                         <button onClick={() => setAdminAds(adminAds.filter(x => x.id !== ad.id))} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                       </div>
-                       <h4 className="font-bold text-slate-900">{ad.title}</h4>
-                       <p className="text-sm text-slate-600 mt-1 mb-3">{ad.content}</p>
-                       <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50">
-                          <a href={ad.actionUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-500 font-medium hover:underline truncate max-w-[150px]">{ad.actionUrl}</a>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-400">Status:</span>
-                            <div 
-                              onClick={() => setAdminAds(adminAds.map(x => x.id === ad.id ? { ...x, active: !x.active } : x))}
-                              className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${ad.active ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                            >
-                              <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${ad.active ? 'translate-x-5' : 'translate-x-0'}`} />
-                            </div>
-                          </div>
-                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -2167,30 +2146,29 @@ const AdminPanel = ({
   );
 };
 
-const AdBox = ({ ads }: { ads?: Ad[] }) => {
-  if (!ads || ads.length === 0) return null;
-  
-  const activeAds = ads.filter(a => a.active);
-  if (activeAds.length === 0) return null;
-  const ad = activeAds[Math.floor(Math.random() * activeAds.length)];
+const AdBox = ({ config }: { config?: AdConfig }) => {
+  if (!config || !config.enabled) return null;
+
+  useEffect(() => {
+    try {
+      if (window && (window as any).adsbygoogle) {
+        (window as any).adsbygoogle.push({});
+      }
+    } catch (e) {
+      console.error("AdSense Error", e);
+    }
+  }, []);
 
   return (
-    <Card className="p-4 flex items-center justify-between relative overflow-hidden group">
-      <div className="absolute inset-0 bg-gradient-to-r from-rose-50 to-white opacity-50" />
-      <div className="relative z-10 flex-1 pr-4">
-        <div className="text-[10px] font-bold text-rose-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-           <Megaphone className="w-3 h-3" /> {ad.title}
-        </div>
-        <div className="text-sm font-medium text-slate-900 leading-tight">{ad.content}</div>
-      </div>
-      <a 
-        href={ad.actionUrl} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="relative z-10 bg-white text-slate-900 text-xs font-bold px-3 py-2 rounded-lg shadow-sm border border-slate-100 hover:bg-slate-50 transition-all whitespace-nowrap"
-      >
-        Ver
-      </a>
+    <Card className="p-4 flex flex-col items-center justify-center relative overflow-hidden bg-slate-50 min-h-[100px]">
+      <div className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Publicidade</div>
+      {/* Google AdSense Responsive Unit */}
+      <ins className="adsbygoogle"
+           style={{ display: 'block', width: '100%' }}
+           data-ad-client={config.clientId}
+           data-ad-slot={config.slots.dashboard}
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
     </Card>
   );
 };
