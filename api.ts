@@ -70,10 +70,10 @@ export const api = {
     return request<DashboardResponse>('/data/dashboard');
   },
 
-  async saveBaby(name: string, birthDate: string, gender: string) {
+  async saveBaby(name: string, birthDate: string, gender: string, focusAreas?: string[]) {
     return request<BabyData>('/data/baby', {
       method: 'POST',
-      body: JSON.stringify({ name, birthDate, gender }),
+      body: JSON.stringify({ name, birthDate, gender, focusAreas }),
     });
   },
 

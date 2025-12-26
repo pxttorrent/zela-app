@@ -50,6 +50,7 @@ interface AppContextType {
   handlePartnerInvite: (email: string) => Promise<void>;
   logout: () => void;
   allMissions: Challenge[];
+  babyLifeStage: 'baby' | 'toddler' | 'kid' | 'teen';
 }
 
 // Protected Route Wrapper
@@ -84,6 +85,14 @@ const AppShell = () => {
 
   // Derived Data
   const babyAgeWeeks = baby ? differenceInWeeks(getTodayString(), baby.birthDate) : 0;
+  
+  const babyLifeStage = React.useMemo(() => {
+    const years = babyAgeWeeks / 52;
+    if (years < 1) return 'baby';
+    if (years < 3) return 'toddler';
+    if (years < 12) return 'kid';
+    return 'teen';
+  }, [babyAgeWeeks]);
 
   // Challenges Logic
   const dailyChallenges = React.useMemo(() => {
@@ -145,7 +154,8 @@ const AppShell = () => {
         userVaccines, toggleVaccine,
         setAdConfig, handlePartnerInvite,
         logout,
-        allMissions
+        allMissions,
+        babyLifeStage
       } satisfies AppContextType} />
     </MainLayout>
   );
@@ -173,9 +183,9 @@ export const AppRouter = () => {
       path: "/onboarding",
       element: (
         <ProtectedRoute>
-          <Onboarding onComplete={async (name, birthDate, gender) => {
+          <Onboarding onComplete={async (name, birthDate, gender, focusAreas) => {
             try {
-              await api.saveBaby(name, birthDate, gender);
+              await api.saveBaby(name, birthDate, gender, focusAreas);
               window.location.href = '/dashboard';
             } catch (err) {
               console.error(err);

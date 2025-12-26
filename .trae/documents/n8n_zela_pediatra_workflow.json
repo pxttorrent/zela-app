@@ -1,0 +1,182 @@
+{
+  "name": "Zela Pediatra - WhatsApp Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.id as user_id, u.name as user_name, b.id as baby_id, b.name as baby_name, b.birth_date FROM users u JOIN babies b ON b.user_id = u.id WHERE u.phone = $1 LIMIT 1",
+        "additionalFields": {
+          "queryParams": "={{$json.body.from}}"
+        }
+      },
+      "name": "Buscar Usuário Zela",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "zela_db_prod",
+          "name": "Zela Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "Você é a Dra. Zela, uma pediatra virtual empática e baseada em evidências científicas (SBP/AAP). \n\nDados do Paciente:\nNome: {{$node[\"Buscar Usuário Zela\"].json[\"baby_name\"]}}\nData Nasc: {{$node[\"Buscar Usuário Zela\"].json[\"birth_date\"]}}\n\nRegras:\n1. Nunca prescreva antibióticos ou medicamentos tarja preta.\n2. Se identificar sinais de perigo (febre alta > 39, dificuldade respiratória, desidratação), instrua IMEDIATAMENTE a ir ao Pronto Socorro.\n3. Seja curta e acolhedora.\n4. Use emojis moderadamente."
+            },
+            {
+              "role": "user",
+              "content": "={{$node[\"Webhook WhatsApp\"].json[\"body\"][\"text\"][\"body\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "OpenAI - Dra Zela",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_zela",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v18.0/{{$env[\"WHATSAPP_PHONE_ID\"]}}/messages",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "messaging_product",
+              "value": "whatsapp"
+            },
+            {
+              "name": "to",
+              "value": "={{$node[\"Webhook WhatsApp\"].json[\"body\"][\"from\"]}}"
+            },
+            {
+              "name": "text",
+              "value": "={{JSON.stringify({ body: $json.message.content })}}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env[\"WHATSAPP_TOKEN\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "name": "Enviar Resposta WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO chat_logs (user_id, baby_id, message_user, message_bot, sentiment) VALUES ($1, $2, $3, $4, 'neutral')",
+        "additionalFields": {
+          "queryParams": "={{[$node[\"Buscar Usuário Zela\"].json[\"user_id\"], $node[\"Buscar Usuário Zela\"].json[\"baby_id\"], $node[\"Webhook WhatsApp\"].json[\"body\"][\"text\"][\"body\"], $json.message.content]}}"
+        }
+      },
+      "name": "Salvar Log no DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "zela_db_prod",
+          "name": "Zela Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Buscar Usuário Zela",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Usuário Zela": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Dra Zela",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Dra Zela": {
+      "main": [
+        [
+          {
+            "node": "Enviar Resposta WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Resposta WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Salvar Log no DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

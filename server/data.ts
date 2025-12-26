@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { query } from './db.js';
 import jwt from 'jsonwebtoken';
 import { config } from './config.js';
-import { validateBody, BabySchema, TrackerSchema, ChallengeSchema } from './schemas.js';
+import { validateBody, BabySchema, TrackerSchema, ChallengeSchema, MilestoneSchema, ChatLogSchema } from './schemas.js';
 
 const router = express.Router();
 
@@ -79,7 +79,7 @@ router.get('/dashboard', async (req: RequestWithUser, res: Response) => {
 
 // --- BABY ---
 router.post('/baby', validateBody(BabySchema), async (req: RequestWithUser, res: Response) => {
-  const { name, birthDate, gender } = req.body;
+  const { name, birthDate, gender, focusAreas } = req.body;
   const userId = req.user?.id;
 
   try {
@@ -88,15 +88,15 @@ router.post('/baby', validateBody(BabySchema), async (req: RequestWithUser, res:
     if (check.rows.length > 0) {
       // Update existing
       const result = await query(
-        'UPDATE babies SET name = $1, birth_date = $2, gender = $3 WHERE user_id = $4 RETURNING *',
-        [name, birthDate, gender, userId]
+        'UPDATE babies SET name = $1, birth_date = $2, gender = $3, focus_areas = $4 WHERE user_id = $5 RETURNING *',
+        [name, birthDate, gender, focusAreas || [], userId]
       );
       return res.json(result.rows[0]);
     } else {
       // Create new
       const result = await query(
-        'INSERT INTO babies (user_id, name, birth_date, gender) VALUES ($1, $2, $3, $4) RETURNING *',
-        [userId, name, birthDate, gender]
+        'INSERT INTO babies (user_id, name, birth_date, gender, focus_areas) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [userId, name, birthDate, gender, focusAreas || []]
       );
       return res.json(result.rows[0]);
     }
@@ -141,6 +141,71 @@ router.post('/challenges', validateBody(ChallengeSchema), async (req: RequestWit
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to complete challenge' });
+  }
+});
+
+// --- MILESTONES ---
+router.get('/milestones', async (req: RequestWithUser, res: Response) => {
+  const userId = req.user?.id;
+  try {
+    // Get baby first
+    const babyRes = await query('SELECT id FROM babies WHERE user_id = $1 LIMIT 1', [userId]);
+    if (babyRes.rows.length === 0) return res.json({ templates: [], achieved: [] });
+    const babyId = babyRes.rows[0].id;
+
+    const templates = await query('SELECT * FROM milestone_templates ORDER BY expected_age_months ASC');
+    const achieved = await query('SELECT * FROM user_milestones WHERE baby_id = $1', [babyId]);
+
+    res.json({
+      templates: templates.rows,
+      achieved: achieved.rows
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load milestones' });
+  }
+});
+
+router.post('/milestones', validateBody(MilestoneSchema), async (req: RequestWithUser, res: Response) => {
+  const { templateId, achievedAt, notes, babyId } = req.body;
+  try {
+    const result = await query(
+      'INSERT INTO user_milestones (baby_id, template_id, achieved_at, notes) VALUES ($1, $2, $3, $4) RETURNING *',
+      [babyId, templateId, achievedAt, notes]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save milestone' });
+  }
+});
+
+// --- CHAT LOGS (AI) ---
+router.get('/chat-history', async (req: RequestWithUser, res: Response) => {
+  const userId = req.user?.id;
+  try {
+    const logs = await query('SELECT * FROM chat_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId]);
+    res.json(logs.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load chat history' });
+  }
+});
+
+// Endpoint for app or n8n (via API Key ideally, but using JWT for now if called from app)
+router.post('/chat-log', validateBody(ChatLogSchema), async (req: RequestWithUser, res: Response) => {
+  const { messageUser, messageBot, sentiment, babyId } = req.body;
+  const userId = req.user?.id;
+
+  try {
+    await query(
+      'INSERT INTO chat_logs (user_id, baby_id, message_user, message_bot, sentiment) VALUES ($1, $2, $3, $4, $5)',
+      [userId, babyId, messageUser, messageBot, sentiment]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save chat log' });
   }
 });
 

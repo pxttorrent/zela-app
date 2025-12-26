@@ -19,7 +19,8 @@ export const BabySchema = z.object({
   birthDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
     message: "Data de nascimento inválida (formato YYYY-MM-DD esperado)"
   }),
-  gender: z.string().optional() // Permite string genérica por enquanto para compatibilidade, mas idealmente seria enum
+  gender: z.string().optional(), // Permite string genérica por enquanto para compatibilidade, mas idealmente seria enum
+  focusAreas: z.array(z.string()).optional()
 });
 
 export const TrackerSchema = z.object({
@@ -31,6 +32,20 @@ export const TrackerSchema = z.object({
 export const ChallengeSchema = z.object({
   challengeId: z.number().int(),
   xp: z.number().int().positive(),
+  babyId: z.union([z.string(), z.number()])
+});
+
+export const ChatLogSchema = z.object({
+  messageUser: z.string().min(1),
+  messageBot: z.string().min(1),
+  sentiment: z.string().optional(),
+  babyId: z.union([z.string(), z.number()]).optional()
+});
+
+export const MilestoneSchema = z.object({
+  templateId: z.number().int(),
+  achievedAt: z.string().refine((date) => !isNaN(Date.parse(date)), "Data inválida"),
+  notes: z.string().optional(),
   babyId: z.union([z.string(), z.number()])
 });
 
