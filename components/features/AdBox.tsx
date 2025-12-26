@@ -7,7 +7,9 @@ interface AdBoxProps {
 }
 
 export const AdBox: React.FC<AdBoxProps> = ({ config }) => {
-  if (!config || !config.enabled) return null;
+  const isValidClient = config?.enabled && config?.clientId?.startsWith('ca-pub-');
+
+  if (!isValidClient) return null;
 
   useEffect(() => {
     try {
