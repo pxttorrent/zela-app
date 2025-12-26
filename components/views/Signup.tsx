@@ -1,23 +1,31 @@
 import React from 'react';
 import { Heart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { View, UserData } from '../../types';
 import { api } from '../../api';
 
 interface SignupProps {
-  setView: (view: View) => void;
-  onSignupSuccess: (user: UserData) => void;
+  // Deprecated props kept for compatibility
+  setView?: (view: View) => void;
+  onSignupSuccess?: (user: UserData) => void;
 }
 
 export const Signup: React.FC<SignupProps> = ({ setView, onSignupSuccess }) => {
+  const navigate = useNavigate();
+
   const handleAuthSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     try {
       const { user, token } = await api.signup(formData.get('name') as string, formData.get('email') as string, formData.get('password') as string);
       localStorage.setItem('zela_token', token);
-      onSignupSuccess(user);
+      
+      if (onSignupSuccess) onSignupSuccess(user);
+      
+      // Redirect to onboarding
+      window.location.href = '/onboarding';
     } catch (err: any) {
       alert(err.message);
     }
@@ -38,11 +46,11 @@ export const Signup: React.FC<SignupProps> = ({ setView, onSignupSuccess }) => {
             <input name="password" className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="Senha" type="password" required />
             <Button className="w-full h-12">Criar Conta</Button>
           </form>
-          <Button variant="outline" className="w-full h-12" onClick={() => setView('landingSales')}>
+          <Button variant="outline" className="w-full h-12" onClick={() => navigate('/')}>
             Voltar
           </Button>
           <div className="text-center text-xs mt-2">
-             Já tem conta? <span className="text-rose-500 font-bold cursor-pointer" onClick={() => setView('login')}>Entrar</span>
+             Já tem conta? <span className="text-rose-500 font-bold cursor-pointer" onClick={() => navigate('/login')}>Entrar</span>
           </div>
         </Card>
       </div>
