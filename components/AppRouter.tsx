@@ -98,26 +98,58 @@ const AppShell = () => {
   const dailyChallenges = React.useMemo(() => {
     if (!baby || !allMissions.length) return [];
     
-    // Filter applicable missions based on age
+    // 1. Filter applicable missions based on age
     const available = allMissions.filter(m => 
       babyAgeWeeks >= m.minAgeWeeks && 
       (m.maxAgeWeeks ? babyAgeWeeks <= m.maxAgeWeeks : true)
     );
 
-    // If no missions for this exact week, show generic or closest ones
-    // For now, we take 3 from the available pool based on day seed
     if (available.length === 0) return [];
 
     const today = getTodayString();
     const completedTodayIds = userChallenges
       .filter(uc => uc.completedDate === today)
       .map(uc => uc.challengeId);
-      
-    const daySeed = new Date().getDate(); 
-    // Simple rotation logic
-    const startIndex = daySeed % Math.max(1, available.length - 2);
-    
-    return available.slice(startIndex, startIndex + 3).map(c => ({
+
+    // 2. Separate by Priority (Focus Areas)
+    const focusAreas = baby.focusAreas || [];
+    const priorityMissions = available.filter(m => focusAreas.includes(m.category));
+    const generalMissions = available.filter(m => !focusAreas.includes(m.category));
+
+    // 3. Selection Logic (Rotate based on day)
+    const daySeed = new Date().getDate(); // 1-31
+    const totalToSelect = 3;
+    const selection: Challenge[] = [];
+
+    // Try to pick up to 2 priority missions
+    if (priorityMissions.length > 0) {
+      const priorityCount = Math.min(2, priorityMissions.length);
+      const startIdx = daySeed % Math.max(1, priorityMissions.length);
+      for (let i = 0; i < priorityCount; i++) {
+        selection.push(priorityMissions[(startIdx + i) % priorityMissions.length]);
+      }
+    }
+
+    // Fill the rest with general missions
+    const remainingSlots = totalToSelect - selection.length;
+    if (generalMissions.length > 0 && remainingSlots > 0) {
+      const startIdx = daySeed % Math.max(1, generalMissions.length);
+      for (let i = 0; i < remainingSlots; i++) {
+        selection.push(generalMissions[(startIdx + i) % generalMissions.length]);
+      }
+    }
+
+    // Fallback logic for edge cases (not enough missions total)
+    // If selection is still empty (no general missions?), try to fill with more priority
+    if (selection.length < totalToSelect && priorityMissions.length > selection.length) {
+        const remainingPriority = priorityMissions.filter(p => !selection.find(s => s.id === p.id));
+        selection.push(...remainingPriority.slice(0, totalToSelect - selection.length));
+    }
+
+    // Deduplicate just in case
+    const uniqueSelection = Array.from(new Map(selection.map(item => [item.id, item])).values());
+
+    return uniqueSelection.map(c => ({
       ...c,
       isCompleted: completedTodayIds.includes(c.id)
     }));

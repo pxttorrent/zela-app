@@ -38,6 +38,7 @@ export interface BabyData {
   name: string;
   birthDate: string; // YYYY-MM-DD
   gender: 'boy' | 'girl' | null;
+  focusAreas?: string[]; // Array de categorias selecionadas (ex: ['sleep', 'motor'])
 }
 
 export interface UserChallenge {
