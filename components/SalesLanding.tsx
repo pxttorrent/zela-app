@@ -4,42 +4,9 @@ import {
   ClipboardList, BarChart3, Music, Users, BookOpen, 
   Star, CheckCircle2, X, ChevronRight 
 } from 'lucide-react';
-
-const Button = ({ children, variant = 'primary', className = '', ...props }: any) => {
-  const base = "inline-flex items-center justify-center whitespace-nowrap rounded-2xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-rose-300";
-  const variants = {
-    primary: "bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-md shadow-rose-200 hover:from-rose-600 hover:to-rose-700",
-    secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200",
-    outline: "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50",
-    ghost: "bg-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900",
-    white: "bg-white text-slate-900 shadow-sm border border-slate-100 hover:bg-slate-50"
-  };
-  const size = props.size === 'sm' ? 'h-9 px-3 text-xs' : props.size === 'lg' ? 'h-14 px-8 text-base' : 'h-12 px-4';
-  
-  return (
-    <button className={`${base} ${variants[variant as keyof typeof variants]} ${size} ${className}`} {...props}>
-      {children}
-    </button>
-  );
-};
-
-const Card = ({ children, className = '' }: any) => (
-  <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm transition-all hover:shadow-md ${className}`}>{children}</div>
-);
-
-const Badge = ({ children, variant = 'default', className = '' }: any) => {
-  const variants = {
-    default: "bg-rose-100 text-rose-700",
-    success: "bg-emerald-100 text-emerald-700",
-    warning: "bg-amber-100 text-amber-700",
-    neutral: "bg-slate-100 text-slate-600"
-  };
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${variants[variant as keyof typeof variants]} ${className}`}>
-      {children}
-    </span>
-  );
-};
+import { Button } from './ui/Button';
+import { Card } from './ui/Card';
+import { Badge } from './ui/Badge';
 
 export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe }: { canContinue: boolean; onContinue: () => void; onStartFree: () => void; onSubscribe: () => void }) => {
   const ctaRef = useRef<HTMLDivElement | null>(null);

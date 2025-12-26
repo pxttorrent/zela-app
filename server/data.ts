@@ -1,17 +1,28 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { query } from './db.js';
 import jwt from 'jsonwebtoken';
+import { config } from './config.js';
+import { validateBody, BabySchema, TrackerSchema, ChallengeSchema } from './schemas.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'zela-secret-dev-key';
+
+// Types
+interface UserPayload {
+  id: string | number;
+  email: string;
+}
+
+interface RequestWithUser extends Request {
+  user?: UserPayload;
+}
 
 // Middleware to check auth
-const authenticate = (req: any, res: any, next: any) => {
+const authenticate = (req: RequestWithUser, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No token' });
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, config.jwtSecret) as UserPayload;
     req.user = decoded;
     next();
   } catch (error) {
@@ -19,12 +30,12 @@ const authenticate = (req: any, res: any, next: any) => {
   }
 };
 
-router.use(authenticate);
+router.use(authenticate as any);
 
 // --- DASHBOARD (LOAD EVERYTHING) ---
-router.get('/dashboard', async (req: any, res) => {
+router.get('/dashboard', async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
 
     // 1. Get Baby
     const babyRes = await query('SELECT * FROM babies WHERE user_id = $1 LIMIT 1', [userId]);
@@ -60,9 +71,9 @@ router.get('/dashboard', async (req: any, res) => {
 });
 
 // --- BABY ---
-router.post('/baby', async (req: any, res) => {
+router.post('/baby', validateBody(BabySchema), async (req: RequestWithUser, res: Response) => {
   const { name, birthDate, gender } = req.body;
-  const userId = req.user.id;
+  const userId = req.user?.id;
 
   try {
     // Check if baby exists
@@ -89,10 +100,10 @@ router.post('/baby', async (req: any, res) => {
 });
 
 // --- TRACKERS ---
-router.post('/trackers', async (req: any, res) => {
+router.post('/trackers', validateBody(TrackerSchema), async (req: RequestWithUser, res: Response) => {
   const { type, timestamp, babyId } = req.body;
-  if (!babyId) return res.status(400).json({ error: 'Baby ID required' });
-
+  // babyId check is done by Zod now, but we might want to verify ownership if babyId comes from body
+  
   try {
      const result = await query(
        'INSERT INTO tracker_logs (baby_id, type, timestamp) VALUES ($1, $2, $3) RETURNING *', 
@@ -106,21 +117,11 @@ router.post('/trackers', async (req: any, res) => {
 });
 
 // --- CHALLENGES ---
-router.post('/challenges', async (req: any, res) => {
+router.post('/challenges', validateBody(ChallengeSchema), async (req: RequestWithUser, res: Response) => {
   const { challengeId, xp, babyId } = req.body; // challengeId here is template_id
-  const userId = req.user.id;
+  const userId = req.user?.id;
 
   try {
-    // Insert Challenge Log
-    // Note: Schema expects template_id as integer, ensure frontend sends it right or adjust schema/logic
-    // For MVP, we might be sending a string ID from frontend mock, let's assume we fix frontend to match schema or use a mapping.
-    // Assuming schema is: template_id integer. Frontend uses numeric IDs in the mock data.
-    
-    // We need a baby_id for user_challenges table according to schema?
-    // Schema: user_id, baby_id, template_id...
-    
-    if (!babyId) return res.status(400).json({ error: 'Baby ID required' });
-
     await query(
       'INSERT INTO user_challenges (user_id, baby_id, template_id, xp_awarded, completed_at, status) VALUES ($1, $2, $3, $4, NOW(), $5)', 
       [userId, babyId, challengeId, xp, 'completed']

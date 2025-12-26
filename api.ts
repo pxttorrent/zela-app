@@ -1,3 +1,5 @@
+import { AdConfig, Challenge, PushNotification, VaccineTemplate, UserData, BabyData, TrackerLog } from './types';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
 
 const getHeaders = () => {
@@ -8,162 +10,139 @@ const getHeaders = () => {
   };
 };
 
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_URL}${url}`, {
+    ...options,
+    headers: {
+      ...getHeaders(),
+      ...options?.headers,
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `Request failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+interface AuthResponse {
+  user: UserData;
+  token: string;
+}
+
+interface DashboardResponse {
+  baby: BabyData | null;
+  trackers: any[]; // The raw DB shape might differ slightly from frontend TrackerLog, but let's assume close enough or map later
+  recentChallenges: any[];
+  adConfig: AdConfig;
+}
+
 export const api = {
   async signup(name: string, email: string, password: string) {
-    const res = await fetch(`${API_URL}/auth/signup`, {
+    return request<AuthResponse>('/auth/signup', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Signup failed');
-    }
-    return res.json();
   },
 
   async login(email: string, password: string) {
-    const res = await fetch(`${API_URL}/auth/login`, {
+    return request<AuthResponse>('/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Login failed');
-    }
-    return res.json();
   },
 
   async getMe(token: string) {
-    const res = await fetch(`${API_URL}/auth/me`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+    // Special case: we might want to pass token explicitly if not in localStorage yet, 
+    // but usually getMe is called with stored token. 
+    // The existing code passed token as arg. Let's support that via headers override.
+    return request<{ user: UserData }>('/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('Invalid token');
-    return res.json();
   },
 
   // --- DATA ---
   async getDashboard() {
-    const res = await fetch(`${API_URL}/data/dashboard`, {
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to load dashboard');
-    return res.json();
+    return request<DashboardResponse>('/data/dashboard');
   },
 
   async saveBaby(name: string, birthDate: string, gender: string) {
-    const res = await fetch(`${API_URL}/data/baby`, {
+    return request<BabyData>('/data/baby', {
       method: 'POST',
-      headers: getHeaders(),
       body: JSON.stringify({ name, birthDate, gender }),
     });
-    if (!res.ok) throw new Error('Failed to save baby');
-    return res.json();
   },
 
-  async addTracker(type: string, timestamp: number, babyId: string) {
-    const res = await fetch(`${API_URL}/data/trackers`, {
+  async addTracker(type: string, timestamp: number, babyId: string | number) {
+    return request<TrackerLog>('/data/trackers', {
       method: 'POST',
-      headers: getHeaders(),
       body: JSON.stringify({ type, timestamp, babyId }),
     });
-    if (!res.ok) throw new Error('Failed to add tracker');
-    return res.json();
   },
 
-  async completeChallenge(challengeId: number, xp: number, babyId: string) {
-    const res = await fetch(`${API_URL}/data/challenges`, {
+  async completeChallenge(challengeId: number, xp: number, babyId: string | number) {
+    return request<{ success: boolean }>('/data/challenges', {
       method: 'POST',
-      headers: getHeaders(),
       body: JSON.stringify({ challengeId, xp, babyId }),
     });
-    if (!res.ok) throw new Error('Failed to complete challenge');
-    return res.json();
   },
 
   // --- ADMIN ---
   admin: {
     async getUsers() {
-      const res = await fetch(`${API_URL}/admin/users`, { headers: getHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch users');
-      return res.json();
+      return request<UserData[]>('/admin/users');
     },
     
     async getVaccines() {
-      const res = await fetch(`${API_URL}/admin/vaccines`, { headers: getHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch vaccines');
-      return res.json();
+      return request<VaccineTemplate[]>('/admin/vaccines');
     },
-    async createVaccine(data: any) {
-      const res = await fetch(`${API_URL}/admin/vaccines`, {
+    async createVaccine(data: Omit<VaccineTemplate, 'id'>) {
+      return request<VaccineTemplate>('/admin/vaccines', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to create vaccine');
-      return res.json();
     },
     async deleteVaccine(id: number) {
-      const res = await fetch(`${API_URL}/admin/vaccines/${id}`, {
+      return request<{ success: boolean }>(`/admin/vaccines/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(),
       });
-      if (!res.ok) throw new Error('Failed to delete vaccine');
-      return res.json();
     },
 
     async getMissions() {
-      const res = await fetch(`${API_URL}/admin/missions`, { headers: getHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch missions');
-      return res.json();
+      return request<Challenge[]>('/admin/missions');
     },
-    async createMission(data: any) {
-      const res = await fetch(`${API_URL}/admin/missions`, {
+    async createMission(data: Omit<Challenge, 'id'>) {
+      return request<Challenge>('/admin/missions', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to create mission');
-      return res.json();
     },
     async deleteMission(id: number) {
-      const res = await fetch(`${API_URL}/admin/missions/${id}`, {
+      return request<{ success: boolean }>(`/admin/missions/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(),
       });
-      if (!res.ok) throw new Error('Failed to delete mission');
-      return res.json();
     },
 
     async getAdConfig() {
-      const res = await fetch(`${API_URL}/admin/ads`, { headers: getHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch ads config');
-      return res.json();
+      return request<AdConfig>('/admin/ads');
     },
-    async updateAdConfig(config: any) {
-      const res = await fetch(`${API_URL}/admin/ads`, {
+    async updateAdConfig(config: AdConfig) {
+      return request<AdConfig>('/admin/ads', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(config),
       });
-      if (!res.ok) throw new Error('Failed to update ads config');
-      return res.json();
     },
 
     async getPushHistory() {
-      const res = await fetch(`${API_URL}/admin/push`, { headers: getHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch push history');
-      return res.json();
+      return request<PushNotification[]>('/admin/push');
     },
-    async sendPush(data: any) {
-      const res = await fetch(`${API_URL}/admin/push`, {
+    async sendPush(data: Omit<PushNotification, 'id' | 'sentAt'>) {
+      return request<{ success: boolean }>('/admin/push', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to send push');
-      return res.json();
     },
   }
 };

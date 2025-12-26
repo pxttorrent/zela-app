@@ -5,10 +5,14 @@ import authRoutes from './auth.js';
 import dataRoutes from './data.js';
 import paymentRoutes from './payment.js';
 import adminRoutes from './admin.js';
+import { errorHandler, apiLimiter, authLimiter } from './middleware.js';
 
 dotenv.config();
 
 const app = express();
+
+// Trust Proxy for Rate Limiting behind load balancers (Render, Vercel, etc)
+app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(express.json());
@@ -17,6 +21,10 @@ app.use(express.json());
 // Note: When running on Netlify Functions, the base path is /.netlify/functions/api
 // We can use a router to handle the /api prefix or mount it appropriately.
 // For simplicity in both local and lambda, we keep /api prefix.
+
+// Apply Rate Limits
+app.use('/api/auth', authLimiter);
+app.use('/api', apiLimiter); // General limit for all other API routes
 
 app.use('/api/auth', authRoutes);
 app.use('/api/data', dataRoutes);
@@ -32,5 +40,7 @@ app.get('/api/health', (req, res) => {
 app.post('/api/sync', async (req, res) => {
   res.json({ status: 'synced', message: 'Sync logic to be implemented with real DB schema' });
 });
+
+app.use(errorHandler);
 
 export default app;

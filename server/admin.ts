@@ -1,19 +1,28 @@
-
-import { Router } from 'express';
-import { query } from './db';
+import { Router, Request, Response, NextFunction } from 'express';
+import { query } from './db.js';
 import jwt from 'jsonwebtoken';
+import { config } from './config.js';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'zela-secret-dev-key';
+
+// Types
+interface UserPayload {
+  id: string | number;
+  email: string;
+}
+
+interface RequestWithUser extends Request {
+  user?: UserPayload;
+}
 
 // Middleware: Verify Token & Check Admin
-const adminAuth = async (req: any, res: any, next: any) => {
+const adminAuth = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, config.jwtSecret) as UserPayload;
     req.user = decoded;
 
     // Check if user is admin (Hardcoded super-admin or DB flag)
@@ -29,7 +38,7 @@ const adminAuth = async (req: any, res: any, next: any) => {
   }
 };
 
-router.use(adminAuth);
+router.use(adminAuth as any);
 
 // --- USERS ---
 router.get('/users', async (req, res) => {
@@ -143,14 +152,14 @@ router.get('/push', async (req, res) => {
   }
 });
 
-router.post('/push', async (req, res) => {
+router.post('/push', async (req: RequestWithUser, res: Response) => {
   const { title, body, audience } = req.body;
   try {
     // In a real app, here we would trigger the VAPID/FCM sending logic
     // For now, we just log it as "sent"
     const { rows } = await query(
       'INSERT INTO push_history (title, body, audience, created_by) VALUES ($1, $2, $3, $4) RETURNING *',
-      [title, body, audience, (req as any).user.id]
+      [title, body, audience, req.user?.id]
     );
     res.json(rows[0]);
   } catch (err) {
