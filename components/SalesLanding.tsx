@@ -1,19 +1,32 @@
 import React, { useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Heart, Flame, LineChart, ShieldCheck, MessageCircle, 
   ClipboardList, BarChart3, Music, Users, BookOpen, 
-  Star, CheckCircle2, X, ChevronRight 
+  Star, CheckCircle2, X, ChevronRight, LogIn
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 
 export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe }: { canContinue: boolean; onContinue: () => void; onStartFree: () => void; onSubscribe: () => void }) => {
+  const navigate = useNavigate();
   const ctaRef = useRef<HTMLDivElement | null>(null);
   const scrollToCta = () => ctaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   return (
-    <div className="space-y-16 pb-20">
+    <div className="space-y-16 pb-20 relative">
+      {/* Login Button - Floating Top Right */}
+      <div className="absolute top-6 right-6 z-50">
+        <button 
+          onClick={() => navigate('/login')}
+          className="group flex items-center gap-2 px-6 py-2.5 bg-white/80 backdrop-blur-md border border-white/50 rounded-full text-slate-600 font-semibold text-sm shadow-sm hover:shadow-md hover:bg-white hover:text-rose-600 hover:-translate-y-0.5 transition-all duration-300 ring-1 ring-slate-900/5"
+        >
+          <span>Entrar</span>
+          <LogIn className="w-4 h-4 text-slate-400 group-hover:text-rose-500 transition-colors" />
+        </button>
+      </div>
+
       {/* HERO SECTION */}
       <section className="relative overflow-hidden pt-12 pb-20 px-6 lg:px-20 bg-gradient-to-b from-rose-50/50 to-white text-center">
         <div className="max-w-4xl mx-auto space-y-6 animate-[fadeIn_800ms_ease-out]">
