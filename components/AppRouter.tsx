@@ -2,6 +2,7 @@ import React from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { api } from '../api';
 
 // Layouts
 import { MainLayout } from './layouts/MainLayout';
@@ -170,7 +171,19 @@ export const AppRouter = () => {
     },
     {
       path: "/onboarding",
-      element: <ProtectedRoute><Onboarding onComplete={() => window.location.href = '/dashboard'} /></ProtectedRoute>
+      element: (
+        <ProtectedRoute>
+          <Onboarding onComplete={async (name, birthDate, gender) => {
+            try {
+              await api.saveBaby(name, birthDate, gender);
+              window.location.href = '/dashboard';
+            } catch (err) {
+              console.error(err);
+              alert('Erro ao salvar perfil do bebê. Tente novamente.');
+            }
+          }} />
+        </ProtectedRoute>
+      )
     },
     {
       element: <ProtectedRoute><AppShell /></ProtectedRoute>,

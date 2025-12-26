@@ -43,6 +43,7 @@ export const useAuth = () => {
   const logout = () => {
     localStorage.removeItem('zela_token');
     setUser(null);
+    window.location.href = '/login';
   };
 
   useEffect(() => {
