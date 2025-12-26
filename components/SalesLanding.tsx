@@ -44,12 +44,12 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
             Rotina personalizada, lembretes, missões diárias, relatórios e comunidade para você sentir que está no controle do cuidado.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Button className="h-14 px-8 text-lg w-full sm:w-auto shadow-xl shadow-rose-200" onClick={onStartFree}>Começar no freemium</Button>
+            <Button className="h-14 px-8 text-lg w-full sm:w-auto shadow-xl shadow-rose-200" onClick={() => navigate('/signup')}>Começar no freemium</Button>
             <Button variant="outline" className="h-14 px-8 text-lg w-full sm:w-auto" onClick={scrollToCta}>Ver planos</Button>
           </div>
           {canContinue && (
             <div className="pt-4">
-              <Button variant="ghost" className="text-slate-500 hover:text-rose-600 transition-colors" onClick={onContinue}>
+              <Button variant="ghost" className="text-slate-500 hover:text-rose-600 transition-colors" onClick={() => navigate('/dashboard')}>
                 Continuar onde parei <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
@@ -219,7 +219,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
               <li className="flex items-center gap-2 text-sm text-slate-400"><X className="w-4 h-4" /> Relatórios avançados</li>
               <li className="flex items-center gap-2 text-sm text-slate-400"><X className="w-4 h-4" /> Sem anúncios</li>
             </ul>
-            <Button variant="outline" className="w-full h-12" onClick={onStartFree}>Começar Grátis</Button>
+            <Button variant="outline" className="w-full h-12" onClick={() => navigate('/signup')}>Começar Grátis</Button>
           </Card>
 
           {/* PREMIUM */}
@@ -238,7 +238,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
               <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Relatórios completos</li>
               <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-rose-500" /> Rotina Personalizada</li>
             </ul>
-            <Button className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white border-none shadow-lg shadow-rose-200" onClick={onSubscribe}>
+            <Button className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white border-none shadow-lg shadow-rose-200" onClick={() => navigate('/signup')}>
               Assinar Agora
             </Button>
             <p className="text-center text-[10px] text-slate-500 mt-4">Cancele quando quiser.</p>
@@ -260,7 +260,7 @@ export const SalesLanding = ({ canContinue, onContinue, onStartFree, onSubscribe
               <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> Dados sincronizados</li>
               <li className="flex items-center gap-2 text-sm text-slate-700"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> Relatórios unificados</li>
             </ul>
-            <Button className="w-full h-12 bg-indigo-500 hover:bg-indigo-600 text-white border-none shadow-lg shadow-indigo-200" onClick={onSubscribe}>
+            <Button className="w-full h-12 bg-indigo-500 hover:bg-indigo-600 text-white border-none shadow-lg shadow-indigo-200" onClick={() => navigate('/signup')}>
               Assinar Família
             </Button>
           </Card>

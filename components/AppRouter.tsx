@@ -48,6 +48,7 @@ interface AppContextType {
   setAdConfig: (config: AdConfig) => void;
   handlePartnerInvite: (email: string) => Promise<void>;
   logout: () => void;
+  allMissions: Challenge[];
 }
 
 // Protected Route Wrapper
@@ -76,61 +77,56 @@ const AppShell = () => {
     userVaccines, toggleVaccine,
     adConfig, setAdConfig,
     xpByCategory,
-    handlePartnerInvite
+    handlePartnerInvite,
+    allMissions
   } = useDashboardData(user);
 
   // Derived Data
   const babyAgeWeeks = baby ? differenceInWeeks(getTodayString(), baby.birthDate) : 0;
 
   // Challenges Logic
-  const generateWeeklyChallenges = (week: number) => {
-    const items = [
-      { title: 'Olho no olho', description: 'Contato visual e sorriso', category: 'afeto', durationMinutes: 5 },
-      { title: 'Tummy Time', description: 'Barriguinha para baixo', category: 'motor', durationMinutes: 2 },
-      { title: 'Sons suaves', description: 'Acompanhar chocalho suave', category: 'cognitivo', durationMinutes: 3 },
-      { title: 'Toque de carinho', description: 'Massagem suave nas perninhas', category: 'motor', durationMinutes: 5 },
-      { title: 'Pele a pele', description: 'Contato próximo', category: 'afeto', durationMinutes: 5 },
-      { title: 'Cuidado materno', description: 'Hidratar-se e respirar fundo', category: 'saude_mae', durationMinutes: 5 },
-    ];
-    return items.map((base, idx) => ({
-      id: week * 10 + idx,
-      title: base.title,
-      description: base.description,
-      category: base.category as any,
-      minAgeWeeks: week,
-      maxAgeWeeks: week,
-      durationMinutes: base.durationMinutes,
-      xpReward: xpByCategory[base.category as any]
-    }));
-  };
-
   const dailyChallenges = React.useMemo(() => {
-    if (!baby) return [];
-    const templates = generateWeeklyChallenges(babyAgeWeeks);
+    if (!baby || !allMissions.length) return [];
+    
+    // Filter applicable missions based on age
+    const available = allMissions.filter(m => 
+      babyAgeWeeks >= m.minAgeWeeks && 
+      (m.maxAgeWeeks ? babyAgeWeeks <= m.maxAgeWeeks : true)
+    );
+
+    // If no missions for this exact week, show generic or closest ones
+    // For now, we take 3 from the available pool based on day seed
+    if (available.length === 0) return [];
+
     const today = getTodayString();
     const completedTodayIds = userChallenges
       .filter(uc => uc.completedDate === today)
       .map(uc => uc.challengeId);
+      
     const daySeed = new Date().getDate(); 
-    const startIndex = daySeed % Math.max(1, templates.length - 2);
-    return templates.slice(startIndex, startIndex + 3).map(c => ({
+    // Simple rotation logic
+    const startIndex = daySeed % Math.max(1, available.length - 2);
+    
+    return available.slice(startIndex, startIndex + 3).map(c => ({
       ...c,
       isCompleted: completedTodayIds.includes(c.id)
     }));
-  }, [baby, babyAgeWeeks, userChallenges, xpByCategory]);
+  }, [baby, babyAgeWeeks, userChallenges, allMissions]);
 
   const nextVaccine = React.useMemo(() => {
     if (!baby || !userVaccines.length) return null;
+    
+    // userVaccines is already populated with metadata from hook
     const pending = userVaccines
       .filter(v => v.status !== 'done')
       .map(v => {
-        const t = VACCINES_DB.find(temp => temp.id === v.templateId);
-        if (!t) return null;
-        const dueDate = addDays(baby.birthDate, t.daysFromBirth);
-        return { ...v, ...t, dueDate };
+        // v already has name, description, daysFromBirth from hook mapping
+        const days = (v as any).daysFromBirth || 0;
+        const dueDate = addDays(baby.birthDate, days);
+        return { ...v, dueDate } as any;
       })
-      .filter(Boolean)
-      .sort((a, b) => new Date(a!.dueDate).getTime() - new Date(b!.dueDate).getTime());
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      
     return pending[0] || null;
   }, [baby, userVaccines]);
 
@@ -147,7 +143,8 @@ const AppShell = () => {
         growthLogs, addGrowthLog,
         userVaccines, toggleVaccine,
         setAdConfig, handlePartnerInvite,
-        logout
+        logout,
+        allMissions
       } satisfies AppContextType} />
     </MainLayout>
   );

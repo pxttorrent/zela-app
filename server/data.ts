@@ -58,11 +58,18 @@ router.get('/dashboard', async (req: RequestWithUser, res: Response) => {
     const configRes = await query('SELECT ad_config FROM app_settings WHERE id = 1');
     const adConfig = configRes.rows[0]?.ad_config || { enabled: false, clientId: '', slots: { dashboard: '' } };
 
+    // 5. Get System Content (Missions & Vaccines)
+    // We send this to the frontend so it renders what the admin configured, not hardcoded files
+    const missionsRes = await query('SELECT * FROM challenge_templates ORDER BY min_age_weeks ASC');
+    const vaccinesRes = await query('SELECT * FROM vaccine_templates ORDER BY days_from_birth ASC');
+
     res.json({
       baby,
       trackers,
       recentChallenges,
-      adConfig
+      adConfig,
+      missions: missionsRes.rows,
+      vaccines: vaccinesRes.rows
     });
   } catch (err) {
     console.error(err);

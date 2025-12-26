@@ -24,6 +24,28 @@ export const useDashboardData = (user: UserData | null) => {
     enabled: !!user && !user.is_admin,
   });
 
+  // Effect to sync vaccines from server templates
+  useEffect(() => {
+    if (dashboardData?.vaccines) {
+      setUserVaccines(prev => {
+        const existingStatus = new Map<number, UserVaccine>(prev.map(v => [v.templateId, v]));
+        
+        return dashboardData.vaccines.map((t: any) => {
+          const existing = existingStatus.get(t.id);
+          return {
+            templateId: t.id,
+            status: existing ? existing.status : 'pending',
+            takenAt: existing ? existing.takenAt : null,
+            // Extra fields for UI rendering
+            name: t.name,
+            description: t.description,
+            daysFromBirth: t.days_from_birth || t.daysFromBirth
+          } as unknown as UserVaccine; 
+        });
+      });
+    }
+  }, [dashboardData?.vaccines]);
+
   // Derived State from Query Data
   const baby: BabyData | null = dashboardData?.baby ? {
     id: dashboardData.baby.id,
@@ -44,6 +66,7 @@ export const useDashboardData = (user: UserData | null) => {
   })) : [];
 
   const adConfig: AdConfig = dashboardData?.adConfig || { enabled: false, clientId: '', slots: { dashboard: '' } };
+  const allMissions = dashboardData?.missions || [];
 
   // --- MUTATIONS ---
 
@@ -125,6 +148,7 @@ export const useDashboardData = (user: UserData | null) => {
     adConfig, 
     setAdConfig,
     xpByCategory,
+    allMissions,
     loadDashboard: async () => { await queryClient.invalidateQueries({ queryKey: ['dashboard'] }) },
     clearData: () => queryClient.clear(),
     handlePartnerInvite

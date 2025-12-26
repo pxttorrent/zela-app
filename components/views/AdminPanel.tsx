@@ -132,12 +132,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout }) => {
       {/* Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Mobile Header for Admin */}
-        <div className="md:hidden bg-slate-900 text-white p-4 flex items-center justify-between sticky top-0 z-20">
-           <span className="font-bold">Zela Admin</span>
-           <div className="flex gap-2">
-             {['dashboard', 'users', 'missions'].map(t => (
-               <button key={t} onClick={() => setTab(t as any)} className={`p-2 rounded-lg ${tab === t ? 'bg-rose-500' : 'bg-slate-800'}`}>
-                 {t === 'dashboard' ? <BarChart3 className="w-4 h-4" /> : t === 'users' ? <Users className="w-4 h-4" /> : <ClipboardList className="w-4 h-4" />}
+        <div className="md:hidden bg-slate-900 text-white p-4 flex flex-col gap-3 sticky top-0 z-20 shadow-lg">
+           <div className="flex justify-between items-center">
+             <span className="font-bold text-lg">Zela Admin</span>
+             <button onClick={onLogout} className="p-2 bg-slate-800 rounded-lg text-red-400">
+               <LogOut className="w-4 h-4" />
+             </button>
+           </div>
+           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+             {[
+               { id: 'dashboard', icon: BarChart3 },
+               { id: 'users', icon: Users },
+               { id: 'missions', icon: ClipboardList },
+               { id: 'vaccines', icon: Syringe },
+               { id: 'ads', icon: Megaphone },
+               { id: 'notifications', icon: Bell },
+               { id: 'settings', icon: Settings },
+             ].map(t => (
+               <button key={t.id} onClick={() => setTab(t.id as any)} className={`p-3 rounded-xl flex-shrink-0 transition-all ${tab === t.id ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-800 text-slate-400'}`}>
+                 <t.icon className="w-5 h-5" />
                </button>
              ))}
            </div>

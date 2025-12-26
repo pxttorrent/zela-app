@@ -37,6 +37,8 @@ interface DashboardResponse {
   trackers: any[]; // The raw DB shape might differ slightly from frontend TrackerLog, but let's assume close enough or map later
   recentChallenges: any[];
   adConfig: AdConfig;
+  missions: Challenge[];
+  vaccines: VaccineTemplate[];
 }
 
 export const api = {
