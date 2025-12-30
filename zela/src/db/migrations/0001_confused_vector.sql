@@ -1,0 +1,1 @@
+ALTER TYPE "public"."category" ADD VALUE 'saude' BEFORE 'saude_mae';
