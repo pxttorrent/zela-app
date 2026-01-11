@@ -1,63 +1,91 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Zela App 👶
 
-# Run and deploy your AI Studio app
+Aplicativo para acompanhamento do desenvolvimento de bebês, incluindo vacinas, desafios de desenvolvimento, rotinas e mais.
 
-This contains everything you need to run your app locally.
+## 🚀 Stack
 
-View your app in AI Studio: https://ai.studio/apps/drive/1ossaVtcRzpXkM0Jq8rrJRYtruVWGtWEe
+- **Frontend:** React 19 + TypeScript + Vite + TailwindCSS
+- **Backend:** Express 5 + TypeScript
+- **Database:** PostgreSQL (Neon)
+- **Auth:** JWT + bcrypt
+- **State:** React Query
 
-## Run Locally
+## 📋 Pré-requisitos
 
-**Prerequisites:**  Node.js, PostgreSQL
+- Node.js 18+
+- PostgreSQL (ou conta no Neon.tech)
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+## ⚙️ Instalação
 
-2. Set up environment variables:
-   - Copy `.env.example` to `.env` (if available) or create `.env`.
-   - Set `GEMINI_API_KEY`, `DATABASE_URL` (for PostgreSQL), and other required variables.
-
-3. Run Database Migrations:
-   ```bash
-   npm run migrate
-   ```
-
-4. Run the app (Development):
-   
-   Start the backend server (runs on port 3002):
-   ```bash
-   npm run dev:server
-   ```
-
-   Start the frontend (runs on port 3000):
-   ```bash
-   npm run dev
-   ```
-
-## Testing
-
-To run the test suite (Unit and Integration):
-
+1. Clone o repositório:
 ```bash
-npm test
+git clone https://github.com/pxttorrent/zela-app.git
+cd zela-app
 ```
 
-To run tests with coverage:
-
+2. Instale as dependências:
 ```bash
-npm run test:coverage
+npm install
 ```
 
-## Scripts
+3. Configure as variáveis de ambiente:
+```bash
+cp .env.example .env
+# Edite o .env com suas credenciais
+```
 
-- `npm run dev`: Start frontend dev server
-- `npm run dev:server`: Start backend dev server
-- `npm run build`: Build frontend and backend
-- `npm run start`: Start production server
-- `npm run migrate`: Run database migrations
-- `npm test`: Run tests
-- `npm run lint`: Run linter
+4. Execute as migrations:
+```bash
+npm run migrate
+```
+
+5. Inicie o projeto:
+```bash
+# Terminal 1 - Backend
+npm run dev:server
+
+# Terminal 2 - Frontend
+npm run dev
+```
+
+## 🧪 Testes
+
+```bash
+npm test           # Watch mode
+npm run test:run   # Single run
+npm run test:coverage  # Com coverage
+```
+
+## 📁 Estrutura
+
+```
+zela-app/
+├── components/        # Componentes React
+│   ├── ui/           # Componentes base (Button, Card, etc)
+│   ├── views/        # Páginas/Views
+│   ├── layouts/      # Layouts (MainLayout, AdminLayout)
+│   └── features/     # Componentes de features específicas
+├── hooks/            # Custom hooks
+├── server/           # Backend Express
+│   ├── auth.ts       # Rotas de autenticação
+│   ├── data.ts       # Rotas de dados
+│   ├── admin.ts      # Rotas administrativas
+│   └── middleware.ts # Middlewares
+├── db/
+│   ├── migrations/   # Migrations SQL
+│   └── seeds/        # Seeds de dados
+├── tests/            # Testes
+├── types.ts          # Tipos TypeScript
+├── api.ts            # Cliente API
+└── utils.ts          # Funções utilitárias
+```
+
+## 🔐 Segurança
+
+- Nunca commite o arquivo `.env`
+- Use secrets fortes em produção
+- Rotacione credenciais periodicamente
+
+## 📄 Licença
+
+MIT

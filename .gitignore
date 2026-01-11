@@ -9,18 +9,25 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-server
 dist-ssr
 .next
 .vercel
 *.tsbuildinfo
 *.local
+
+# Environment
 .env
+.env.local
+.env.production
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
+.trae/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
