@@ -98,14 +98,17 @@ router.get('/missions', async (req, res) => {
 });
 
 router.post('/missions', async (req, res) => {
-  const { title, description, category, minAgeWeeks, maxAgeWeeks, xpReward } = req.body;
+  const { title, description, category, minAgeDays, maxAgeDays, lifeStage, xpReward } = req.body;
   try {
     const { rows } = await query(
-      'INSERT INTO challenge_templates (title, description, category, min_age_weeks, max_age_weeks, xp_base) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [title, description, category, minAgeWeeks, maxAgeWeeks || 100, xpReward || 10]
+      `INSERT INTO challenge_templates 
+       (title, description, category, min_age_days, max_age_days, life_stage, xp_base) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [title, description, category, minAgeDays || 0, maxAgeDays || 365, lifeStage || 'baby', xpReward || 10]
     );
     res.json(rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to create mission' });
   }
 });

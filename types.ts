@@ -1,17 +1,43 @@
 export type View = 'landing' | 'onboarding' | 'dashboard' | 'tools' | 'vaccines' | 'profile' | 'login' | 'signup' | 'reports' | 'routine' | 'community' | 'spirituality' | 'admin' | 'landingSales' | 'settings';
 
-export type ChallengeCategory = 'motor' | 'cognitivo' | 'nutricao' | 'sono' | 'afeto' | 'saude_mae';
+export type LifeStage = 'baby' | 'toddler' | 'kid' | 'teen';
+
+export type ChallengeCategory = 
+  | 'motor' | 'cognitivo' | 'nutricao' | 'sono' | 'afeto' | 'saude_mae'
+  | 'autonomia' | 'social' | 'escola' | 'responsabilidade' 
+  | 'comunicacao' | 'financeiro' | 'emocional';
 
 export interface Challenge {
   id: number;
   title: string;
   description: string;
   category: ChallengeCategory;
-  minAgeWeeks: number;
-  maxAgeWeeks: number;
-  durationMinutes: number;
+  minAgeDays: number;      // NOVO: dias ao invés de semanas
+  maxAgeDays: number;      // NOVO: dias ao invés de semanas
+  lifeStage: LifeStage;    // NOVO
+  minAgeWeeks?: number;    // Legacy
+  maxAgeWeeks?: number;    // Legacy
+  durationMinutes?: number;
   xpReward: number;
   isCompleted?: boolean;
+}
+
+export interface TrackerTypeConfig {
+  code: string;
+  label: string;
+  icon: string;
+  lifeStages: LifeStage[];
+  sortOrder: number;
+}
+
+export interface MilestoneTemplate {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  minAgeDays: number;
+  maxAgeDays: number;
+  lifeStage: LifeStage;
 }
 
 export interface VaccineTemplate {
@@ -38,7 +64,8 @@ export interface BabyData {
   name: string;
   birthDate: string; // YYYY-MM-DD
   gender: 'boy' | 'girl' | null;
-  focusAreas?: string[]; // Array de categorias selecionadas (ex: ['sleep', 'motor'])
+  focusAreas?: string[];
+  lifeStage?: LifeStage;  // NOVO: calculado no backend
 }
 
 export interface UserChallenge {
@@ -56,7 +83,12 @@ export interface UserVaccine {
   daysFromBirth?: number;
 }
 
-export type TrackerType = 'feed' | 'sleep' | 'diaper' | 'bath' | 'tummy' | 'pump' | 'meds' | 'symptom';
+// Manter TrackerType atualizado com todas as fases
+export type TrackerType = 
+  | 'feed' | 'sleep' | 'diaper' | 'bath' | 'tummy' | 'pump' | 'meds' | 'symptom'  // Baby
+  | 'potty' | 'tantrum' | 'words' | 'meal'  // Toddler
+  | 'homework' | 'chores' | 'activity' | 'screen' | 'reading'  // Kid
+  | 'mood' | 'exercise' | 'social' | 'study';  // Teen
 
 export type FeedType = 'feed_left' | 'feed_right' | 'bottle';
 

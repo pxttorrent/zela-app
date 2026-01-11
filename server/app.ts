@@ -5,6 +5,8 @@ import authRoutes from './auth.js';
 import dataRoutes from './data.js';
 import paymentRoutes from './payment.js';
 import adminRoutes from './admin.js';
+import notificationRoutes from './notifications.js';
+import partnerRoutes from './partner.js';
 import { errorHandler, apiLimiter, authLimiter } from './middleware.js';
 
 dotenv.config();
@@ -49,6 +51,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/data', dataRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/partner', partnerRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

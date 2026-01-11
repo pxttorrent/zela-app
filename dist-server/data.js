@@ -41,48 +41,32 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var express_1 = __importDefault(require("express"));
 var db_js_1 = require("./db.js");
-var jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-var config_js_1 = require("./config.js");
 var schemas_js_1 = require("./schemas.js");
+var middleware_js_1 = require("./middleware.js");
 var router = express_1.default.Router();
 // Helper to verify ownership
 var verifyBabyOwnership = function (babyId, userId) { return __awaiter(void 0, void 0, void 0, function () {
     var result;
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, (0, db_js_1.query)('SELECT id FROM babies WHERE id = $1 AND user_id = $2', [babyId, userId])];
+            case 0: return [4 /*yield*/, (0, db_js_1.query)('SELECT id FROM baby_caretakers WHERE baby_id = $1 AND user_id = $2', [babyId, userId])];
             case 1:
                 result = _a.sent();
                 return [2 /*return*/, result.rows.length > 0];
         }
     });
 }); };
-// Middleware to check auth
-var authenticate = function (req, res, next) {
-    var authHeader = req.headers.authorization;
-    if (!authHeader)
-        return res.status(401).json({ error: 'No token' });
-    var token = authHeader.split(' ')[1];
-    try {
-        var decoded = jsonwebtoken_1.default.verify(token, config_js_1.config.jwtSecret);
-        req.user = decoded;
-        next();
-    }
-    catch (error) {
-        res.status(401).json({ error: 'Invalid token' });
-    }
-};
-router.use(authenticate);
+router.use(middleware_js_1.authenticate);
 // --- DASHBOARD (LOAD EVERYTHING) ---
 router.get('/dashboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var userId, babyRes, baby, trackers, recentChallenges, trackersRes, challengesRes, configRes, adConfig, missionsRes, vaccinesRes, err_1;
+    var userId, babyRes, baby, trackers, recentChallenges, trackersRes, challengesRes, configRes, adConfig, missionsRes, vaccinesRes, trackerTypesRes, err_1;
     var _a, _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
             case 0:
-                _c.trys.push([0, 8, , 9]);
+                _c.trys.push([0, 9, , 10]);
                 userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-                return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM babies WHERE user_id = $1 LIMIT 1', [userId])];
+                return [4 /*yield*/, (0, db_js_1.query)("\n      SELECT b.*, bc.role, bc.permissions \n      FROM babies b\n      JOIN baby_caretakers bc ON bc.baby_id = b.id\n      WHERE bc.user_id = $1 \n      LIMIT 1\n    ", [userId])];
             case 1:
                 babyRes = _c.sent();
                 baby = babyRes.rows[0] || null;
@@ -102,33 +86,154 @@ router.get('/dashboard', function (req, res) { return __awaiter(void 0, void 0, 
             case 5:
                 configRes = _c.sent();
                 adConfig = ((_b = configRes.rows[0]) === null || _b === void 0 ? void 0 : _b.ad_config) || { enabled: false, clientId: '', slots: { dashboard: '' } };
-                return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM challenge_templates ORDER BY min_age_weeks ASC')];
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM challenge_templates ORDER BY min_age_days ASC')];
             case 6:
                 missionsRes = _c.sent();
                 return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM vaccine_templates ORDER BY days_from_birth ASC')];
             case 7:
                 vaccinesRes = _c.sent();
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM tracker_types ORDER BY sort_order ASC')];
+            case 8:
+                trackerTypesRes = _c.sent();
                 res.json({
                     baby: baby,
                     trackers: trackers,
                     recentChallenges: recentChallenges,
                     adConfig: adConfig,
                     missions: missionsRes.rows,
-                    vaccines: vaccinesRes.rows
+                    vaccines: vaccinesRes.rows,
+                    trackerTypes: trackerTypesRes.rows
                 });
-                return [3 /*break*/, 9];
-            case 8:
+                return [3 /*break*/, 10];
+            case 9:
                 err_1 = _c.sent();
                 console.error(err_1);
                 res.status(500).json({ error: 'Failed to load dashboard' });
-                return [3 /*break*/, 9];
-            case 9: return [2 /*return*/];
+                return [3 /*break*/, 10];
+            case 10: return [2 /*return*/];
+        }
+    });
+}); });
+// --- REPORTS ---
+router.get('/reports/summary', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var _a, babyId, month, year, isOwner, startDate, endDate, trackersResult, missionsResult, vaccinesResult, milestonesResult, err_2;
+    var _b, _c;
+    return __generator(this, function (_d) {
+        switch (_d.label) {
+            case 0:
+                _a = req.query, babyId = _a.babyId, month = _a.month, year = _a.year;
+                _d.label = 1;
+            case 1:
+                _d.trys.push([1, 7, , 8]);
+                return [4 /*yield*/, verifyBabyOwnership(babyId, (_b = req.user) === null || _b === void 0 ? void 0 : _b.id)];
+            case 2:
+                isOwner = _d.sent();
+                if (!isOwner)
+                    return [2 /*return*/, res.status(403).json({ error: 'Access denied' })];
+                startDate = "".concat(year, "-").concat(String(month).padStart(2, '0'), "-01");
+                endDate = "".concat(year, "-").concat(String(Number(month) + 1).padStart(2, '0'), "-01");
+                return [4 /*yield*/, (0, db_js_1.query)("\n      SELECT type, COUNT(*) as count\n      FROM tracker_logs\n      WHERE baby_id = $1 AND created_at >= $2 AND created_at < $3\n      GROUP BY type\n    ", [babyId, startDate, endDate])];
+            case 3:
+                trackersResult = _d.sent();
+                return [4 /*yield*/, (0, db_js_1.query)("\n      SELECT COUNT(*) as total, SUM(xp_earned) as xp_total\n      FROM user_challenges\n      WHERE baby_id = $1 AND completed_date >= $2 AND completed_date < $3\n    ", [babyId, startDate, endDate])];
+            case 4:
+                missionsResult = _d.sent();
+                return [4 /*yield*/, (0, db_js_1.query)("\n      SELECT COUNT(*) as total\n      FROM user_vaccines\n      WHERE baby_id = $1 AND status = 'done' AND applied_date >= $2 AND applied_date < $3\n    ", [babyId, startDate, endDate])];
+            case 5:
+                vaccinesResult = _d.sent();
+                return [4 /*yield*/, (0, db_js_1.query)("\n      SELECT title, achieved_date\n      FROM user_milestones\n      WHERE baby_id = $1 AND achieved_date >= $2 AND achieved_date < $3\n    ", [babyId, startDate, endDate])];
+            case 6:
+                milestonesResult = _d.sent();
+                res.json({
+                    month: Number(month),
+                    year: Number(year),
+                    trackers: trackersResult.rows,
+                    missions: missionsResult.rows[0] || { total: 0, xp_total: 0 },
+                    vaccines: ((_c = vaccinesResult.rows[0]) === null || _c === void 0 ? void 0 : _c.total) || 0,
+                    milestones: milestonesResult.rows
+                });
+                return [3 /*break*/, 8];
+            case 7:
+                err_2 = _d.sent();
+                console.error(err_2);
+                res.status(500).json({ error: 'Failed to generate report' });
+                return [3 /*break*/, 8];
+            case 8: return [2 /*return*/];
+        }
+    });
+}); });
+router.get('/reports/export', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var _a, babyId, _b, format, isOwner, baby, trackers, growth, milestones, csv_1, err_3;
+    var _c, _d, _e;
+    return __generator(this, function (_f) {
+        switch (_f.label) {
+            case 0:
+                _a = req.query, babyId = _a.babyId, _b = _a.format, format = _b === void 0 ? 'csv' : _b;
+                _f.label = 1;
+            case 1:
+                _f.trys.push([1, 7, , 8]);
+                return [4 /*yield*/, verifyBabyOwnership(babyId, (_c = req.user) === null || _c === void 0 ? void 0 : _c.id)];
+            case 2:
+                isOwner = _f.sent();
+                if (!isOwner)
+                    return [2 /*return*/, res.status(403).json({ error: 'Access denied' })];
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM babies WHERE id = $1', [babyId])];
+            case 3:
+                baby = _f.sent();
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT type, timestamp, created_at FROM tracker_logs WHERE baby_id = $1 ORDER BY timestamp', [babyId])];
+            case 4:
+                trackers = _f.sent();
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT weight, height, head_circumference, recorded_date FROM growth_logs WHERE baby_id = $1 ORDER BY recorded_date', [babyId])];
+            case 5:
+                growth = _f.sent();
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT title, achieved_date FROM user_milestones WHERE baby_id = $1 ORDER BY achieved_date', [babyId])];
+            case 6:
+                milestones = _f.sent();
+                if (format === 'csv') {
+                    csv_1 = 'Relatório Zela App\n\n';
+                    csv_1 += "Crian\u00E7a: ".concat((_d = baby.rows[0]) === null || _d === void 0 ? void 0 : _d.name, "\n");
+                    csv_1 += "Data de Nascimento: ".concat((_e = baby.rows[0]) === null || _e === void 0 ? void 0 : _e.birth_date, "\n\n");
+                    csv_1 += 'REGISTROS DE ATIVIDADES\n';
+                    csv_1 += 'Tipo,Data/Hora\n';
+                    trackers.rows.forEach(function (t) {
+                        csv_1 += "".concat(t.type, ",").concat(new Date(t.timestamp).toLocaleString('pt-BR'), "\n");
+                    });
+                    csv_1 += '\nCRESCIMENTO\n';
+                    csv_1 += 'Data,Peso (kg),Altura (cm),Perímetro Cef. (cm)\n';
+                    growth.rows.forEach(function (g) {
+                        csv_1 += "".concat(g.recorded_date, ",").concat(g.weight || '', ",").concat(g.height || '', ",").concat(g.head_circumference || '', "\n");
+                    });
+                    csv_1 += '\nMARCOS\n';
+                    csv_1 += 'Marco,Data\n';
+                    milestones.rows.forEach(function (m) {
+                        csv_1 += "".concat(m.title, ",").concat(m.achieved_date, "\n");
+                    });
+                    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+                    res.setHeader('Content-Disposition', "attachment; filename=zela-relatorio-".concat(babyId, ".csv"));
+                    res.send(csv_1);
+                }
+                else {
+                    // JSON
+                    res.json({
+                        baby: baby.rows[0],
+                        trackers: trackers.rows,
+                        growth: growth.rows,
+                        milestones: milestones.rows
+                    });
+                }
+                return [3 /*break*/, 8];
+            case 7:
+                err_3 = _f.sent();
+                console.error(err_3);
+                res.status(500).json({ error: 'Failed to export data' });
+                return [3 /*break*/, 8];
+            case 8: return [2 /*return*/];
         }
     });
 }); });
 // --- BABY ---
 router.post('/baby', (0, schemas_js_1.validateBody)(schemas_js_1.BabySchema), function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var _a, name, birthDate, gender, focusAreas, userId, check, result, result, err_2;
+    var _a, name, birthDate, gender, focusAreas, userId, check, result, result, err_4;
     var _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
@@ -152,8 +257,8 @@ router.post('/baby', (0, schemas_js_1.validateBody)(schemas_js_1.BabySchema), fu
                 return [2 /*return*/, res.json(result.rows[0])];
             case 6: return [3 /*break*/, 8];
             case 7:
-                err_2 = _c.sent();
-                console.error(err_2);
+                err_4 = _c.sent();
+                console.error(err_4);
                 res.status(500).json({ error: 'Failed to save baby' });
                 return [3 /*break*/, 8];
             case 8: return [2 /*return*/];
@@ -162,7 +267,7 @@ router.post('/baby', (0, schemas_js_1.validateBody)(schemas_js_1.BabySchema), fu
 }); });
 // --- TRACKERS ---
 router.post('/trackers', (0, schemas_js_1.validateBody)(schemas_js_1.TrackerSchema), function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var _a, type, timestamp, babyId, subType, userId, isOwner, result, err_3;
+    var _a, type, timestamp, babyId, subType, userId, isOwner, result, err_5;
     var _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
@@ -184,8 +289,8 @@ router.post('/trackers', (0, schemas_js_1.validateBody)(schemas_js_1.TrackerSche
                 res.json(result.rows[0]);
                 return [3 /*break*/, 5];
             case 4:
-                err_3 = _c.sent();
-                console.error(err_3);
+                err_5 = _c.sent();
+                console.error(err_5);
                 res.status(500).json({ error: 'Failed to save tracker' });
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];
@@ -194,7 +299,7 @@ router.post('/trackers', (0, schemas_js_1.validateBody)(schemas_js_1.TrackerSche
 }); });
 // --- CHALLENGES ---
 router.post('/challenges', (0, schemas_js_1.validateBody)(schemas_js_1.ChallengeSchema), function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var _a, challengeId, xp, babyId, userId, isOwner, err_4;
+    var _a, challengeId, xp, babyId, userId, isOwner, err_6;
     var _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
@@ -221,8 +326,8 @@ router.post('/challenges', (0, schemas_js_1.validateBody)(schemas_js_1.Challenge
                 res.json({ success: true });
                 return [3 /*break*/, 6];
             case 5:
-                err_4 = _c.sent();
-                console.error(err_4);
+                err_6 = _c.sent();
+                console.error(err_6);
                 res.status(500).json({ error: 'Failed to complete challenge' });
                 return [3 /*break*/, 6];
             case 6: return [2 /*return*/];
@@ -231,7 +336,7 @@ router.post('/challenges', (0, schemas_js_1.validateBody)(schemas_js_1.Challenge
 }); });
 // --- MILESTONES ---
 router.get('/milestones', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var userId, babyRes, babyId, templates, achieved, err_5;
+    var userId, babyRes, babyId, templates, achieved, err_7;
     var _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
@@ -246,7 +351,7 @@ router.get('/milestones', function (req, res) { return __awaiter(void 0, void 0,
                 if (babyRes.rows.length === 0)
                     return [2 /*return*/, res.json({ templates: [], achieved: [] })];
                 babyId = babyRes.rows[0].id;
-                return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM milestone_templates ORDER BY expected_age_months ASC')];
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM milestone_templates ORDER BY min_age_days ASC')];
             case 3:
                 templates = _b.sent();
                 return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM user_milestones WHERE baby_id = $1', [babyId])];
@@ -258,8 +363,8 @@ router.get('/milestones', function (req, res) { return __awaiter(void 0, void 0,
                 });
                 return [3 /*break*/, 6];
             case 5:
-                err_5 = _b.sent();
-                console.error(err_5);
+                err_7 = _b.sent();
+                console.error(err_7);
                 res.status(500).json({ error: 'Failed to load milestones' });
                 return [3 /*break*/, 6];
             case 6: return [2 /*return*/];
@@ -267,7 +372,7 @@ router.get('/milestones', function (req, res) { return __awaiter(void 0, void 0,
     });
 }); });
 router.post('/milestones', (0, schemas_js_1.validateBody)(schemas_js_1.MilestoneSchema), function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var _a, templateId, achievedAt, notes, babyId, userId, isOwner, result, err_6;
+    var _a, templateId, achievedAt, notes, babyId, userId, isOwner, result, err_8;
     var _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
@@ -289,8 +394,8 @@ router.post('/milestones', (0, schemas_js_1.validateBody)(schemas_js_1.Milestone
                 res.json(result.rows[0]);
                 return [3 /*break*/, 5];
             case 4:
-                err_6 = _c.sent();
-                console.error(err_6);
+                err_8 = _c.sent();
+                console.error(err_8);
                 res.status(500).json({ error: 'Failed to save milestone' });
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];
@@ -299,7 +404,7 @@ router.post('/milestones', (0, schemas_js_1.validateBody)(schemas_js_1.Milestone
 }); });
 // --- CHAT LOGS (AI) ---
 router.get('/chat-history', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var userId, logs, err_7;
+    var userId, logs, err_9;
     var _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
@@ -314,8 +419,8 @@ router.get('/chat-history', function (req, res) { return __awaiter(void 0, void 
                 res.json(logs.rows);
                 return [3 /*break*/, 4];
             case 3:
-                err_7 = _b.sent();
-                console.error(err_7);
+                err_9 = _b.sent();
+                console.error(err_9);
                 res.status(500).json({ error: 'Failed to load chat history' });
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];
@@ -324,7 +429,7 @@ router.get('/chat-history', function (req, res) { return __awaiter(void 0, void 
 }); });
 // Endpoint for app or n8n (via API Key ideally, but using JWT for now if called from app)
 router.post('/chat-log', (0, schemas_js_1.validateBody)(schemas_js_1.ChatLogSchema), function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var _a, messageUser, messageBot, sentiment, babyId, userId, isOwner, err_8;
+    var _a, messageUser, messageBot, sentiment, babyId, userId, isOwner, err_10;
     var _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
@@ -346,8 +451,8 @@ router.post('/chat-log', (0, schemas_js_1.validateBody)(schemas_js_1.ChatLogSche
                 res.json({ success: true });
                 return [3 /*break*/, 5];
             case 4:
-                err_8 = _c.sent();
-                console.error(err_8);
+                err_10 = _c.sent();
+                console.error(err_10);
                 res.status(500).json({ error: 'Failed to save chat log' });
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];

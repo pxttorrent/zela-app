@@ -3,13 +3,26 @@ import { MessageCircle, ChevronRight } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { ChatMessage } from '../../types';
+import { api } from '../../api';
 
 export const AIChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: '1', role: 'assistant', text: 'Olá! Sou a IA do Zela. Tenho acesso a diretrizes da Sociedade Brasileira de Pediatria. Como posso ajudar com seu bebê hoje?' }
   ]);
   const [input, setInput] = useState('');
+  const [context, setContext] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    api.chat.getContext().then(data => {
+        setContext(data.context);
+        if (data.context?.babyName) {
+            setMessages(prev => [
+                { id: 'init', role: 'assistant', text: `Olá! Como posso ajudar com o ${data.context.babyName} hoje?` }
+            ]);
+        }
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -21,15 +34,27 @@ export const AIChat = () => {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
 
-    // Simulated RAG response
+    // Save to backend (fire and forget)
+    api.chat.saveLog({ role: 'user', content: input });
+
+    // Simulated RAG response with Context
     setTimeout(() => {
-      const responses = [
-        "Baseado nas diretrizes, para cólicas em recém-nascidos, recomenda-se a técnica do 'charutinho', balanço suave e ruído branco. Evite chás antes dos 6 meses.",
-        "A febre abaixo de 37.8°C geralmente não requer medicação imediata, mas observe o estado geral do bebê. Mantenha a hidratação.",
-        "O sono do bebê nessa fase é polifásico. É normal acordar a cada 3 horas para mamar."
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', text: randomResponse }]);
+      let responseText = "";
+      
+      // Simple keyword matching for demo purposes
+      if (input.toLowerCase().includes('febre')) {
+        responseText = "A febre abaixo de 37.8°C geralmente não requer medicação imediata, mas observe o estado geral do bebê. Mantenha a hidratação.";
+      } else if (input.toLowerCase().includes('sono')) {
+        responseText = "O sono do bebê nessa fase é polifásico. É normal acordar a cada 3 horas para mamar.";
+      } else if (input.toLowerCase().includes('cólica') || input.toLowerCase().includes('colica')) {
+        responseText = "Baseado nas diretrizes, para cólicas em recém-nascidos, recomenda-se a técnica do 'charutinho', balanço suave e ruído branco.";
+      } else {
+        responseText = `Entendi. Como ${context?.babyName || 'o bebê'} está se desenvolvendo muito bem, continue observando os sinais. Se tiver dúvidas médicas específicas, consulte o pediatra.`;
+      }
+
+      const aiMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', text: responseText };
+      setMessages(prev => [...prev, aiMsg]);
+      api.chat.saveLog({ role: 'assistant', content: responseText });
     }, 1000);
   };
 

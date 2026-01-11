@@ -1,5 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
+import { config } from './config.js';
+
+export interface UserPayload {
+  id: string | number;
+  email: string;
+  isAdmin?: boolean;
+}
+
+export interface RequestWithUser extends Request {
+  user?: UserPayload;
+}
+
+export const authenticate = (req: RequestWithUser, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'No token' });
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, config.jwtSecret) as UserPayload;
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
 
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('[ErrorHandler]', err);

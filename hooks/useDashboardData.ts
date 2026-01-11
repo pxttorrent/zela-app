@@ -20,7 +20,7 @@ export const useDashboardData = (user: UserData | null) => {
   // --- QUERY: Dashboard Data ---
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['dashboard', user?.id],
-    queryFn: () => api.getDashboard(),
+    queryFn: () => api.dashboard.getData(),
     enabled: !!user && !user.is_admin,
   });
 
@@ -51,7 +51,8 @@ export const useDashboardData = (user: UserData | null) => {
     id: dashboardData.baby.id,
     name: dashboardData.baby.name,
     birthDate: dashboardData.baby.birthDate,
-    gender: dashboardData.baby.gender
+    gender: dashboardData.baby.gender,
+    lifeStage: dashboardData.baby.life_stage || 'baby'
   } : null;
 
   const trackers: TrackerLog[] = dashboardData?.trackers ? dashboardData.trackers.map((t: { id: string; type: string; timestamp: string | number }) => ({
@@ -67,13 +68,14 @@ export const useDashboardData = (user: UserData | null) => {
 
   const adConfig: AdConfig = dashboardData?.adConfig || { enabled: false, clientId: '', slots: { dashboard: '' } };
   const allMissions = dashboardData?.missions || [];
+  const trackerTypes = dashboardData?.trackerTypes || [];
 
   // --- MUTATIONS ---
 
   const addTrackerMutation = useMutation({
     mutationFn: async (type: TrackerType) => {
       if (!baby?.id) throw new Error("No baby selected");
-      return api.addTracker(type, Date.now(), baby.id);
+      return api.trackers.save({ type, timestamp: Date.now(), babyId: baby.id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -83,7 +85,7 @@ export const useDashboardData = (user: UserData | null) => {
   const completeChallengeMutation = useMutation({
     mutationFn: async ({ challengeId, xp }: { challengeId: number, xp: number }) => {
       if (!baby?.id) throw new Error("No baby selected");
-      return api.completeChallenge(challengeId, xp, baby.id);
+      return api.challenges.complete({ challengeId, xp, babyId: baby.id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -149,6 +151,7 @@ export const useDashboardData = (user: UserData | null) => {
     setAdConfig,
     xpByCategory,
     allMissions,
+    trackerTypes,
     loadDashboard: async () => { await queryClient.invalidateQueries({ queryKey: ['dashboard'] }) },
     clearData: () => queryClient.clear(),
     handlePartnerInvite

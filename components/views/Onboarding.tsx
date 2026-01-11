@@ -15,6 +15,9 @@ const GOALS = [
   { id: 'behavior', label: 'Comportamento', icon: '😤' },
   { id: 'potty', label: 'Desfralde', icon: '🚽' },
   { id: 'routine', label: 'Rotina Diária', icon: '📅' },
+  { id: 'school', label: 'Escola e Estudos', icon: '📚' },
+  { id: 'emotional', label: 'Emoções e Social', icon: '❤️' },
+  { id: 'autonomy', label: 'Autonomia', icon: '✨' },
 ];
 
 export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
@@ -59,7 +62,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               {step === 1 ? <Baby className="w-6 h-6" /> : <Target className="w-6 h-6" />}
             </div>
             <h1 className="text-2xl font-bold text-slate-900">
-              {step === 1 ? 'Perfil do Bebê' : 'Seus Objetivos'}
+              {step === 1 ? 'Perfil da Criança' : 'Seus Objetivos'}
             </h1>
             <p className="text-slate-500 mt-2 text-sm">
               {step === 1 
@@ -71,7 +74,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
           {step === 1 ? (
             <form onSubmit={handleNext} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Nome do bebê</label>
+                <label className="text-sm font-medium text-slate-700">Nome</label>
                 <input 
                   value={data.name}
                   onChange={e => setData({...data, name: e.target.value})}

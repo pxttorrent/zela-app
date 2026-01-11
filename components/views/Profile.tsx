@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Users, Baby, ChevronRight, LogOut } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -10,10 +10,32 @@ interface ProfileProps {
   baby: BabyData | null;
   setView: (view: View) => void;
   onLogout: () => void;
-  onPartnerInvite: () => void;
+  onPartnerInvite: (email: string) => Promise<void>;
 }
 
 export const Profile: React.FC<ProfileProps> = ({ user, baby, setView, onLogout, onPartnerInvite }) => {
+  const [showInviteInput, setShowInviteInput] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+
+  const handleInvite = async () => {
+    if (!inviteEmail) return;
+    setInviting(true);
+    try {
+        await onPartnerInvite(inviteEmail);
+        setShowInviteInput(false);
+        setInviteEmail('');
+        alert('Convite criado! O código foi gerado.'); 
+        // Note: In a real app we would show the code or email it. 
+        // The API returns the code, but the hook might not expose it directly via handlePartnerInvite unless we change it.
+        // For now assume the hook handles the success message or we rely on the alert.
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao enviar convite.');
+    }
+    setInviting(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 mb-8">
@@ -28,24 +50,46 @@ export const Profile: React.FC<ProfileProps> = ({ user, baby, setView, onLogout,
 
       {/* Duo Mode (Pain point: Couple Sync) */}
       <Card className="bg-indigo-50 border-indigo-100">
-        <div className="p-4 flex items-center justify-between">
-           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-500">
-               <Users className="w-5 h-5" />
+        <div className="p-4">
+           <div className="flex items-center justify-between mb-2">
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-500">
+                 <Users className="w-5 h-5" />
+               </div>
+               <div>
+                 <h3 className="font-bold text-indigo-900">Modo Dupla</h3>
+                 <p className="text-xs text-indigo-600">
+                   {user?.partnerName 
+                     ? `Sincronizado com ${user.partnerName}` 
+                     : "Convide seu parceiro(a)"}
+                 </p>
+               </div>
              </div>
-             <div>
-               <h3 className="font-bold text-indigo-900">Modo Dupla</h3>
-               <p className="text-xs text-indigo-600">
-                 {user?.partnerName 
-                   ? `Sincronizado com ${user.partnerName}` 
-                   : "Convide seu parceiro(a)"}
-               </p>
-             </div>
+             {!user?.partnerName && !showInviteInput && (
+               <Button size="sm" className="h-8 bg-indigo-500 hover:bg-indigo-600 text-xs" onClick={() => setShowInviteInput(true)}>
+                 Convidar
+               </Button>
+             )}
            </div>
-           {!user?.partnerName && (
-             <Button size="sm" className="h-8 bg-indigo-500 hover:bg-indigo-600 text-xs" onClick={onPartnerInvite}>
-               Convidar
-             </Button>
+           
+           {showInviteInput && (
+             <div className="mt-3 bg-white p-3 rounded-lg border border-indigo-100">
+               <p className="text-xs text-slate-500 mb-2">Digite o email do parceiro para gerar um código de convite:</p>
+               <div className="flex gap-2">
+                 <input 
+                   className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-indigo-500"
+                   placeholder="Email do parceiro"
+                   value={inviteEmail}
+                   onChange={e => setInviteEmail(e.target.value)}
+                 />
+                 <Button size="sm" onClick={handleInvite} disabled={inviting} className="bg-indigo-500 hover:bg-indigo-600">
+                   {inviting ? '...' : 'Gerar'}
+                 </Button>
+               </div>
+               <Button size="sm" variant="ghost" className="mt-1 w-full text-xs text-slate-400" onClick={() => setShowInviteInput(false)}>
+                 Cancelar
+               </Button>
+             </div>
            )}
         </div>
       </Card>

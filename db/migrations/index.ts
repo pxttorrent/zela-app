@@ -5,6 +5,10 @@ const migrations = [
   { name: '002_admin', up: () => import('./002_admin') },
   { name: '003_expansion', up: () => import('./003_expansion') },
   { name: '004_goals', up: () => import('./004_goals') },
+  { name: '005_all_ages', up: () => import('./005_all_ages') },
+  { name: '006_milestone_schema', up: () => import('./006_milestone_schema') },
+  { name: '007_notifications', up: () => import('./007_notifications') },
+  { name: '008_partner', up: () => import('./008_partner') },
 ];
 
 export async function runMigrations() {

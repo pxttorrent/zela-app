@@ -3,8 +3,25 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authLimiter = exports.apiLimiter = exports.errorHandler = void 0;
+exports.authLimiter = exports.apiLimiter = exports.errorHandler = exports.authenticate = void 0;
 var express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+var jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+var config_js_1 = require("./config.js");
+var authenticate = function (req, res, next) {
+    var authHeader = req.headers.authorization;
+    if (!authHeader)
+        return res.status(401).json({ error: 'No token' });
+    var token = authHeader.split(' ')[1];
+    try {
+        var decoded = jsonwebtoken_1.default.verify(token, config_js_1.config.jwtSecret);
+        req.user = decoded;
+        next();
+    }
+    catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+};
+exports.authenticate = authenticate;
 var errorHandler = function (err, req, res, next) {
     console.error('[ErrorHandler]', err);
     var statusCode = err.statusCode || 500;

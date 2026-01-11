@@ -180,21 +180,22 @@ router.get('/missions', function (req, res) { return __awaiter(void 0, void 0, v
     });
 }); });
 router.post('/missions', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var _a, title, description, category, minAgeWeeks, maxAgeWeeks, xpReward, rows, err_7;
+    var _a, title, description, category, minAgeDays, maxAgeDays, lifeStage, xpReward, rows, err_7;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
-                _a = req.body, title = _a.title, description = _a.description, category = _a.category, minAgeWeeks = _a.minAgeWeeks, maxAgeWeeks = _a.maxAgeWeeks, xpReward = _a.xpReward;
+                _a = req.body, title = _a.title, description = _a.description, category = _a.category, minAgeDays = _a.minAgeDays, maxAgeDays = _a.maxAgeDays, lifeStage = _a.lifeStage, xpReward = _a.xpReward;
                 _b.label = 1;
             case 1:
                 _b.trys.push([1, 3, , 4]);
-                return [4 /*yield*/, (0, db_js_1.query)('INSERT INTO challenge_templates (title, description, category, min_age_weeks, max_age_weeks, xp_base) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [title, description, category, minAgeWeeks, maxAgeWeeks || 100, xpReward || 10])];
+                return [4 /*yield*/, (0, db_js_1.query)("INSERT INTO challenge_templates \n       (title, description, category, min_age_days, max_age_days, life_stage, xp_base) \n       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *", [title, description, category, minAgeDays || 0, maxAgeDays || 365, lifeStage || 'baby', xpReward || 10])];
             case 2:
                 rows = (_b.sent()).rows;
                 res.json(rows[0]);
                 return [3 /*break*/, 4];
             case 3:
                 err_7 = _b.sent();
+                console.error(err_7);
                 res.status(500).json({ error: 'Failed to create mission' });
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];

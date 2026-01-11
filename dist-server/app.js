@@ -46,6 +46,8 @@ var auth_js_1 = __importDefault(require("./auth.js"));
 var data_js_1 = __importDefault(require("./data.js"));
 var payment_js_1 = __importDefault(require("./payment.js"));
 var admin_js_1 = __importDefault(require("./admin.js"));
+var notifications_js_1 = __importDefault(require("./notifications.js"));
+var partner_js_1 = __importDefault(require("./partner.js"));
 var middleware_js_1 = require("./middleware.js");
 dotenv_1.default.config();
 var app = (0, express_1.default)();
@@ -83,6 +85,8 @@ app.use('/api/auth', auth_js_1.default);
 app.use('/api/data', data_js_1.default);
 app.use('/api/payment', payment_js_1.default);
 app.use('/api/admin', admin_js_1.default);
+app.use('/api/notifications', notifications_js_1.default);
+app.use('/api/partner', partner_js_1.default);
 // Health Check
 app.get('/api/health', function (req, res) {
     res.json({ status: 'ok', time: new Date().toISOString() });

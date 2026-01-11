@@ -25,11 +25,11 @@ import { AdminPanel } from './views/AdminPanel';
 import { Settings as SettingsView } from './views/Settings';
 
 // Types & Utils
-import { differenceInWeeks, getTodayString, addDays } from '../utils';
+import { differenceInWeeks, differenceInDays, getTodayString, addDays } from '../utils';
 import { VACCINES_DB } from '../constants';
 import { 
   UserData, BabyData, TrackerLog, AdConfig, Challenge, 
-  UserVaccine, GrowthLog, TrackerType 
+  UserVaccine, GrowthLog, TrackerType, TrackerTypeConfig
 } from '../types';
 
 // Context Interface
@@ -37,6 +37,7 @@ interface AppContextType {
   user: UserData | null;
   baby: BabyData | null;
   trackers: TrackerLog[];
+  trackerTypes: TrackerTypeConfig[];
   adConfig: AdConfig;
   dailyChallenges: Challenge[];
   nextVaccine: (UserVaccine & { name: string; description: string; dueDate: string }) | null;
@@ -80,19 +81,15 @@ const AppShell = () => {
     adConfig, setAdConfig,
     xpByCategory,
     handlePartnerInvite,
-    allMissions
+    allMissions,
+    trackerTypes
   } = useDashboardData(user);
 
   // Derived Data
   const babyAgeWeeks = baby ? differenceInWeeks(getTodayString(), baby.birthDate) : 0;
+  const babyAgeDays = baby ? differenceInDays(getTodayString(), baby.birthDate) : 0;
   
-  const babyLifeStage = React.useMemo(() => {
-    const years = babyAgeWeeks / 52;
-    if (years < 1) return 'baby';
-    if (years < 3) return 'toddler';
-    if (years < 12) return 'kid';
-    return 'teen';
-  }, [babyAgeWeeks]);
+  const babyLifeStage = baby?.lifeStage || 'baby';
 
   // Challenges Logic
   const dailyChallenges = React.useMemo(() => {
@@ -100,8 +97,8 @@ const AppShell = () => {
     
     // 1. Filter applicable missions based on age
     const available = allMissions.filter(m => 
-      babyAgeWeeks >= m.minAgeWeeks && 
-      (m.maxAgeWeeks ? babyAgeWeeks <= m.maxAgeWeeks : true)
+      babyAgeDays >= (m.minAgeDays || 0) && 
+      (m.maxAgeDays ? babyAgeDays <= m.maxAgeDays : true)
     );
 
     if (available.length === 0) return [];
@@ -179,7 +176,7 @@ const AppShell = () => {
       babyAgeWeeks={babyAgeWeeks}
     >
       <Outlet context={{
-        user, baby, trackers, adConfig, dailyChallenges, nextVaccine,
+        user, baby, trackers, trackerTypes, adConfig, dailyChallenges, nextVaccine,
         handleTracker: addTracker,
         handleCompleteChallenge: completeChallenge,
         growthLogs, addGrowthLog,
@@ -217,7 +214,7 @@ export const AppRouter = () => {
         <ProtectedRoute>
           <Onboarding onComplete={async (name, birthDate, gender, focusAreas) => {
             try {
-              await api.saveBaby(name, birthDate, gender, focusAreas);
+              await api.baby.save({ name, birthDate, gender, focusAreas });
               window.location.href = '/dashboard';
             } catch (err) {
               console.error(err);
@@ -274,7 +271,7 @@ const ProfileWrapper = () => {
 
 const ReportsWrapper = () => {
   const ctx = useOutletContext<AppContextType>();
-  return <Reports trackers={ctx.trackers} growthLogs={ctx.growthLogs} />;
+  return <Reports trackers={ctx.trackers} growthLogs={ctx.growthLogs} baby={ctx.baby} />;
 };
 
 const RoutineWrapper = () => {

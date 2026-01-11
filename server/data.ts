@@ -1,39 +1,15 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { query } from './db.js';
-import jwt from 'jsonwebtoken';
 import { config } from './config.js';
 import { validateBody, BabySchema, TrackerSchema, ChallengeSchema, MilestoneSchema, ChatLogSchema } from './schemas.js';
+import { authenticate, RequestWithUser } from './middleware.js';
 
 const router = express.Router();
 
-// Types
-interface UserPayload {
-  id: string | number;
-  email: string;
-}
-
-interface RequestWithUser extends Request {
-  user?: UserPayload;
-}
-
 // Helper to verify ownership
 const verifyBabyOwnership = async (babyId: string | number, userId: string | number): Promise<boolean> => {
-  const result = await query('SELECT id FROM babies WHERE id = $1 AND user_id = $2', [babyId, userId]);
+  const result = await query('SELECT id FROM baby_caretakers WHERE baby_id = $1 AND user_id = $2', [babyId, userId]);
   return result.rows.length > 0;
-};
-
-// Middleware to check auth
-const authenticate = (req: RequestWithUser, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'No token' });
-  const token = authHeader.split(' ')[1];
-  try {
-    const decoded = jwt.verify(token, config.jwtSecret) as UserPayload;
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
-  }
 };
 
 router.use(authenticate as any);
@@ -43,8 +19,14 @@ router.get('/dashboard', async (req: RequestWithUser, res: Response) => {
   try {
     const userId = req.user?.id;
 
-    // 1. Get Baby
-    const babyRes = await query('SELECT * FROM babies WHERE user_id = $1 LIMIT 1', [userId]);
+    // 1. Get Baby (via caretakers)
+    const babyRes = await query(`
+      SELECT b.*, bc.role, bc.permissions 
+      FROM babies b
+      JOIN baby_caretakers bc ON bc.baby_id = b.id
+      WHERE bc.user_id = $1 
+      LIMIT 1
+    `, [userId]);
     const baby = babyRes.rows[0] || null;
 
     let trackers: any[] = [];
@@ -56,7 +38,7 @@ router.get('/dashboard', async (req: RequestWithUser, res: Response) => {
       trackers = trackersRes.rows;
     }
 
-    // 3. Get User Stats (Points, Streak is in users table, but we might want challenge history)
+    // 3. Get User Stats
     const challengesRes = await query('SELECT * FROM user_challenges WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20', [userId]);
     recentChallenges = challengesRes.rows;
 
@@ -64,10 +46,12 @@ router.get('/dashboard', async (req: RequestWithUser, res: Response) => {
     const configRes = await query('SELECT ad_config FROM app_settings WHERE id = 1');
     const adConfig = configRes.rows[0]?.ad_config || { enabled: false, clientId: '', slots: { dashboard: '' } };
 
-    // 5. Get System Content (Missions & Vaccines)
-    // We send this to the frontend so it renders what the admin configured, not hardcoded files
-    const missionsRes = await query('SELECT * FROM challenge_templates ORDER BY min_age_weeks ASC');
+    // 5. Get System Content
+    const missionsRes = await query('SELECT * FROM challenge_templates ORDER BY min_age_days ASC');
     const vaccinesRes = await query('SELECT * FROM vaccine_templates ORDER BY days_from_birth ASC');
+    
+    // 6. Get Tracker Types
+    const trackerTypesRes = await query('SELECT * FROM tracker_types ORDER BY sort_order ASC');
 
     res.json({
       baby,
@@ -75,11 +59,131 @@ router.get('/dashboard', async (req: RequestWithUser, res: Response) => {
       recentChallenges,
       adConfig,
       missions: missionsRes.rows,
-      vaccines: vaccinesRes.rows
+      vaccines: vaccinesRes.rows,
+      trackerTypes: trackerTypesRes.rows
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load dashboard' });
+  }
+});
+
+// --- REPORTS ---
+router.get('/reports/summary', async (req: RequestWithUser, res: Response) => {
+  const { babyId, month, year } = req.query;
+
+  try {
+    // Verificar ownership
+    const isOwner = await verifyBabyOwnership(babyId as string, req.user?.id!);
+    if (!isOwner) return res.status(403).json({ error: 'Access denied' });
+
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
+
+    // Contagem de trackers por tipo
+    const trackersResult = await query(`
+      SELECT type, COUNT(*) as count
+      FROM tracker_logs
+      WHERE baby_id = $1 AND created_at >= $2 AND created_at < $3
+      GROUP BY type
+    `, [babyId, startDate, endDate]);
+
+    // Missões completadas
+    const missionsResult = await query(`
+      SELECT COUNT(*) as total, SUM(xp_earned) as xp_total
+      FROM user_challenges
+      WHERE baby_id = $1 AND completed_date >= $2 AND completed_date < $3
+    `, [babyId, startDate, endDate]);
+
+    // Vacinas aplicadas
+    const vaccinesResult = await query(`
+      SELECT COUNT(*) as total
+      FROM user_vaccines
+      WHERE baby_id = $1 AND status = 'done' AND applied_date >= $2 AND applied_date < $3
+    `, [babyId, startDate, endDate]);
+
+    // Marcos registrados
+    const milestonesResult = await query(`
+      SELECT title, achieved_date
+      FROM user_milestones
+      WHERE baby_id = $1 AND achieved_date >= $2 AND achieved_date < $3
+    `, [babyId, startDate, endDate]);
+
+    res.json({
+      month: Number(month),
+      year: Number(year),
+      trackers: trackersResult.rows,
+      missions: missionsResult.rows[0] || { total: 0, xp_total: 0 },
+      vaccines: vaccinesResult.rows[0]?.total || 0,
+      milestones: milestonesResult.rows
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
+router.get('/reports/export', async (req: RequestWithUser, res: Response) => {
+  const { babyId, format = 'csv' } = req.query;
+
+  try {
+    const isOwner = await verifyBabyOwnership(babyId as string, req.user?.id!);
+    if (!isOwner) return res.status(403).json({ error: 'Access denied' });
+
+    // Buscar todos os dados
+    const baby = await query('SELECT * FROM babies WHERE id = $1', [babyId]);
+    const trackers = await query(
+      'SELECT type, timestamp, created_at FROM tracker_logs WHERE baby_id = $1 ORDER BY timestamp',
+      [babyId]
+    );
+    const growth = await query(
+      'SELECT weight, height, head_circumference, recorded_date FROM growth_logs WHERE baby_id = $1 ORDER BY recorded_date',
+      [babyId]
+    );
+    const milestones = await query(
+      'SELECT title, achieved_date FROM user_milestones WHERE baby_id = $1 ORDER BY achieved_date',
+      [babyId]
+    );
+
+    if (format === 'csv') {
+      // Gerar CSV
+      let csv = 'Relatório Zela App\n\n';
+      csv += `Criança: ${baby.rows[0]?.name}\n`;
+      csv += `Data de Nascimento: ${baby.rows[0]?.birth_date}\n\n`;
+
+      csv += 'REGISTROS DE ATIVIDADES\n';
+      csv += 'Tipo,Data/Hora\n';
+      trackers.rows.forEach(t => {
+        csv += `${t.type},${new Date(t.timestamp).toLocaleString('pt-BR')}\n`;
+      });
+
+      csv += '\nCRESCIMENTO\n';
+      csv += 'Data,Peso (kg),Altura (cm),Perímetro Cef. (cm)\n';
+      growth.rows.forEach(g => {
+        csv += `${g.recorded_date},${g.weight || ''},${g.height || ''},${g.head_circumference || ''}\n`;
+      });
+
+      csv += '\nMARCOS\n';
+      csv += 'Marco,Data\n';
+      milestones.rows.forEach(m => {
+        csv += `${m.title},${m.achieved_date}\n`;
+      });
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=zela-relatorio-${babyId}.csv`);
+      res.send(csv);
+    } else {
+      // JSON
+      res.json({
+        baby: baby.rows[0],
+        trackers: trackers.rows,
+        growth: growth.rows,
+        milestones: milestones.rows
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to export data' });
   }
 });
 
@@ -187,7 +291,7 @@ router.get('/milestones', async (req: RequestWithUser, res: Response) => {
     if (babyRes.rows.length === 0) return res.json({ templates: [], achieved: [] });
     const babyId = babyRes.rows[0].id;
 
-    const templates = await query('SELECT * FROM milestone_templates ORDER BY expected_age_months ASC');
+    const templates = await query('SELECT * FROM milestone_templates ORDER BY min_age_days ASC');
     const achieved = await query('SELECT * FROM user_milestones WHERE baby_id = $1', [babyId]);
 
     res.json({

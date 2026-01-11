@@ -1,8 +1,9 @@
 import React from 'react';
 import { Flag } from 'lucide-react';
 import { AdBox } from '../features/AdBox';
-import { View, UserData, BabyData, TrackerLog, AdConfig, Challenge, UserVaccine, TrackerType } from '../../types';
-import { QuickTrackers } from '../dashboard/QuickTrackers';
+import { View, UserData, BabyData, TrackerLog, AdConfig, Challenge, UserVaccine, TrackerType, TrackerTypeConfig } from '../../types';
+import { TrackerGrid } from '../dashboard/TrackerGrid';
+import { LifeStageIndicator } from '../ui/LifeStageIndicator';
 import { StatusCards } from '../dashboard/StatusCards';
 import { DailyChallenges } from '../dashboard/DailyChallenges';
 import { NextVaccineCard } from '../dashboard/NextVaccineCard';
@@ -12,6 +13,7 @@ interface DashboardProps {
   user: UserData | null;
   baby: BabyData | null;
   trackers: TrackerLog[];
+  trackerTypes?: TrackerTypeConfig[];
   adConfig: AdConfig;
   dailyChallenges: Challenge[];
   nextVaccine: (UserVaccine & { name: string; description: string; dueDate: string }) | null;
@@ -23,7 +25,9 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   user, 
+  baby,
   trackers, 
+  trackerTypes = [],
   adConfig, 
   dailyChallenges, 
   nextVaccine, 
@@ -34,22 +38,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   return (
     <>
-      {babyLifeStage !== 'baby' && (
-        <Card className="p-4 bg-indigo-50 border-indigo-200 mb-6">
-          <div className="flex items-center gap-3">
-             <Flag className="w-6 h-6 text-indigo-500" />
-             <div>
-               <h3 className="font-bold text-indigo-900 capitalize">
-                 Fase Atual: {babyLifeStage === 'toddler' ? 'Primeiros Passos (1-3 anos)' : babyLifeStage === 'kid' ? 'Infância (3-12 anos)' : 'Adolescência (12+)'}
-               </h3>
-               <p className="text-xs text-indigo-700">Acompanhe os novos marcos de desenvolvimento específicos para esta idade.</p>
-             </div>
-          </div>
-        </Card>
-      )}
+      <div className="mb-6">
+        {baby && <LifeStageIndicator baby={baby} />}
+      </div>
 
-      <QuickTrackers trackers={trackers} handleTracker={handleTracker} />
-
+      <TrackerGrid 
+        trackerTypes={trackerTypes} 
+        trackers={trackers} 
+        onTrack={handleTracker} 
+        lifeStage={babyLifeStage}
+      />
 
       <StatusCards user={user} />
       
