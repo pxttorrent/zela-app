@@ -14,7 +14,26 @@ const app = express();
 // Trust Proxy for Rate Limiting behind load balancers (Render, Vercel, etc)
 app.set('trust proxy', 1);
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://zela-app.vercel.app',  // Adicione seus domínios de produção
+  'https://zela-app.netlify.app'
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir requests sem origin (mobile apps, Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bloqueado pelo CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Routes

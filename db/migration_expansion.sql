@@ -1,7 +1,7 @@
 -- Migration: Expansion 0-18 years & AI Chat
 
 -- 1. Chat Logs for AI Pediatrician
-CREATE TABLE chat_logs (
+CREATE TABLE IF NOT EXISTS chat_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   baby_id uuid REFERENCES babies(id) ON DELETE SET NULL,
@@ -13,7 +13,7 @@ CREATE TABLE chat_logs (
 );
 
 -- 2. Milestones (Marcos de Desenvolvimento)
-CREATE TABLE milestone_templates (
+CREATE TABLE IF NOT EXISTS milestone_templates (
   id serial PRIMARY KEY,
   title text NOT NULL,
   description text NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE milestone_templates (
   alert_age_months integer -- Idade de alerta (red flag) se não atingir
 );
 
-CREATE TABLE user_milestones (
+CREATE TABLE IF NOT EXISTS user_milestones (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   baby_id uuid NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
   template_id integer NOT NULL REFERENCES milestone_templates(id),
@@ -33,11 +33,11 @@ CREATE TABLE user_milestones (
 
 -- 3. Expand Challenge Templates for older kids
 ALTER TABLE challenge_templates 
-ADD COLUMN min_age_years integer DEFAULT 0,
-ADD COLUMN max_age_years integer DEFAULT 0;
+ADD COLUMN IF NOT EXISTS min_age_years integer DEFAULT 0,
+ADD COLUMN IF NOT EXISTS max_age_years integer DEFAULT 0;
 
 -- 4. Medical Documents (Exams, Prescriptions)
-CREATE TABLE medical_docs (
+CREATE TABLE IF NOT EXISTS medical_docs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   baby_id uuid NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
   title text NOT NULL,

@@ -56,12 +56,15 @@ export interface UserVaccine {
   daysFromBirth?: number;
 }
 
-export type TrackerType = 'feed_left' | 'feed_right' | 'bottle' | 'diaper' | 'sleep' | 'bath';
+export type TrackerType = 'feed' | 'sleep' | 'diaper' | 'bath' | 'tummy' | 'pump' | 'meds' | 'symptom';
+
+export type FeedType = 'feed_left' | 'feed_right' | 'bottle';
 
 export interface TrackerLog {
   id: string;
   type: TrackerType;
-  timestamp: number; // Date.now()
+  timestamp: number;
+  subType?: FeedType;
 }
 
 export interface GrowthLog {

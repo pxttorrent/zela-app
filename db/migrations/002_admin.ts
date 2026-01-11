@@ -1,10 +1,9 @@
-
-import { pool } from './server/db';
+import { pool } from '../../server/db';
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 
-const runMigration = async () => {
+export default async function up() {
   try {
     // 1. Run SQL Migration
     const sql = fs.readFileSync(path.join(process.cwd(), 'db', 'migration_admin.sql'), 'utf8');
@@ -36,9 +35,6 @@ const runMigration = async () => {
 
   } catch (err) {
     console.error('Migration failed', err);
-  } finally {
-    await pool.end();
+    throw err;
   }
-};
-
-runMigration();
+}

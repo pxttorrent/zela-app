@@ -24,7 +24,8 @@ export const BabySchema = z.object({
 });
 
 export const TrackerSchema = z.object({
-  type: z.enum(['feed', 'sleep', 'diaper', 'bath', 'tummy', 'pump', 'meds', 'symptom']), // Adicionei tipos extras que podem existir
+  type: z.enum(['feed', 'sleep', 'diaper', 'bath', 'tummy', 'pump', 'meds', 'symptom']),
+  subType: z.enum(['feed_left', 'feed_right', 'bottle']).optional(),
   timestamp: z.number().int().positive(),
   babyId: z.union([z.string(), z.number()])
 });

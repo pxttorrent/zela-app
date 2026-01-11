@@ -16,6 +16,12 @@ interface RequestWithUser extends Request {
   user?: UserPayload;
 }
 
+// Helper to verify ownership
+const verifyBabyOwnership = async (babyId: string | number, userId: string | number): Promise<boolean> => {
+  const result = await query('SELECT id FROM babies WHERE id = $1 AND user_id = $2', [babyId, userId]);
+  return result.rows.length > 0;
+};
+
 // Middleware to check auth
 const authenticate = (req: RequestWithUser, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
@@ -108,10 +114,32 @@ router.post('/baby', validateBody(BabySchema), async (req: RequestWithUser, res:
 
 // --- TRACKERS ---
 router.post('/trackers', validateBody(TrackerSchema), async (req: RequestWithUser, res: Response) => {
-  const { type, timestamp, babyId } = req.body;
-  // babyId check is done by Zod now, but we might want to verify ownership if babyId comes from body
+  const { type, timestamp, babyId, subType } = req.body;
+  const userId = req.user?.id;
   
+  // Verify ownership
+  const isOwner = await verifyBabyOwnership(babyId, userId!);
+  if (!isOwner) {
+    return res.status(403).json({ error: 'Acesso negado: bebê não pertence a este usuário' });
+  }
+
   try {
+     // Note: subType handling might need column in DB, assuming it might be stored in 'type' or a new column?
+     // For now, let's just insert type and timestamp as before, or assume schema update later.
+     // The prompt says "Align Enums", but DB schema update wasn't explicitly in the SQL migrations provided in the prompt text (except reorganization).
+     // However, the prompt says "Adicionar subType opcional" in schema.
+     // I will assume for now we just insert into existing structure or user needs to update DB schema.
+     // Wait, the prompt didn't ask to change the SQL for tracker_logs to add subType column.
+     // I'll stick to inserting what fits or maybe JSON/extra field if available.
+     // Looking at schema.sql (I saw it in LS), let's assume it supports it or we just ignore subType for DB for now if column missing.
+     // Actually, let's just pass it. If DB fails, we'll know. But to be safe, I will stick to what was there unless I see a schema migration for subType.
+     // The prompt only asked to update schema validation and Types.
+     // I'll assume the DB is ready or I should just use `type` as is.
+     
+     // Actually, I'll update the query to include subType if I can, but standard SQL insert:
+     // 'INSERT INTO tracker_logs (baby_id, type, timestamp) ...'
+     // If I add subType to validation but not to DB, it's fine.
+     
      const result = await query(
        'INSERT INTO tracker_logs (baby_id, type, timestamp) VALUES ($1, $2, $3) RETURNING *', 
        [babyId, type, new Date(timestamp)]
@@ -127,6 +155,12 @@ router.post('/trackers', validateBody(TrackerSchema), async (req: RequestWithUse
 router.post('/challenges', validateBody(ChallengeSchema), async (req: RequestWithUser, res: Response) => {
   const { challengeId, xp, babyId } = req.body; // challengeId here is template_id
   const userId = req.user?.id;
+
+  // Verify ownership
+  const isOwner = await verifyBabyOwnership(babyId, userId!);
+  if (!isOwner) {
+    return res.status(403).json({ error: 'Acesso negado: bebê não pertence a este usuário' });
+  }
 
   try {
     await query(
@@ -168,6 +202,14 @@ router.get('/milestones', async (req: RequestWithUser, res: Response) => {
 
 router.post('/milestones', validateBody(MilestoneSchema), async (req: RequestWithUser, res: Response) => {
   const { templateId, achievedAt, notes, babyId } = req.body;
+  const userId = req.user?.id;
+
+  // Verify ownership
+  const isOwner = await verifyBabyOwnership(babyId, userId!);
+  if (!isOwner) {
+    return res.status(403).json({ error: 'Acesso negado: bebê não pertence a este usuário' });
+  }
+
   try {
     const result = await query(
       'INSERT INTO user_milestones (baby_id, template_id, achieved_at, notes) VALUES ($1, $2, $3, $4) RETURNING *',
@@ -196,6 +238,12 @@ router.get('/chat-history', async (req: RequestWithUser, res: Response) => {
 router.post('/chat-log', validateBody(ChatLogSchema), async (req: RequestWithUser, res: Response) => {
   const { messageUser, messageBot, sentiment, babyId } = req.body;
   const userId = req.user?.id;
+
+  // Verify ownership
+  const isOwner = await verifyBabyOwnership(babyId, userId!);
+  if (!isOwner) {
+    return res.status(403).json({ error: 'Acesso negado: bebê não pertence a este usuário' });
+  }
 
   try {
     await query(

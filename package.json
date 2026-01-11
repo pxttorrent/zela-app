@@ -6,10 +6,14 @@
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx server/index.ts",
-    "migrate:admin": "tsx migrate_admin.ts",
     "build": "vite build && tsc server/index.ts --esModuleInterop --outDir dist-server",
     "preview": "vite preview",
-    "server": "node dist-server/server/index.js"
+    "server": "node dist-server/server/index.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "migrate": "tsx db/migrations/index.ts",
+    "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",

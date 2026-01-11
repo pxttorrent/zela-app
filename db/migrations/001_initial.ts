@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { pool } from './server/db.js';
+import { pool } from '../../server/db';
 
 const schemaPath = path.join(process.cwd(), 'db', 'schema.sql');
 
-async function migrate() {
+export default async function up() {
   console.log('🚀 Starting migration...');
   try {
     const schema = fs.readFileSync(schemaPath, 'utf8');
@@ -16,16 +16,13 @@ async function migrate() {
       .filter(cmd => cmd.length > 0);
 
     for (const command of commands) {
-      console.log(`Executing: ${command.substring(0, 50)}...`);
+      // console.log(`Executing: ${command.substring(0, 50)}...`);
       await pool.query(command);
     }
     
-    console.log('✅ Migration completed successfully!');
-    process.exit(0);
+    console.log('✅ Migration 001_initial completed successfully!');
   } catch (err) {
     console.error('❌ Migration failed:', err);
-    process.exit(1);
+    throw err;
   }
 }
-
-migrate();

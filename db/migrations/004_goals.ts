@@ -1,8 +1,8 @@
-import { pool } from './server/db';
+import { pool } from '../../server/db';
 import fs from 'fs';
 import path from 'path';
 
-const runMigration = async () => {
+export default async function up() {
   try {
     const sql = fs.readFileSync(path.join(process.cwd(), 'db', 'migration_goals.sql'), 'utf8');
     console.log('Applying Goals migration...');
@@ -10,9 +10,6 @@ const runMigration = async () => {
     console.log('Goals migration successful!');
   } catch (err) {
     console.error('Migration failed', err);
-  } finally {
-    await pool.end();
+    throw err;
   }
-};
-
-runMigration();
+}

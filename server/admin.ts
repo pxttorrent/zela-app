@@ -28,7 +28,7 @@ const adminAuth = async (req: RequestWithUser, res: Response, next: NextFunction
     // Check if user is admin (Hardcoded super-admin or DB flag)
     const { rows } = await query('SELECT email, is_admin FROM users WHERE id = $1', [decoded.id]);
     
-    if (rows.length > 0 && (rows[0].email === 'admin@zela.com' || rows[0].is_admin)) {
+    if (rows.length > 0 && rows[0].is_admin === true) {
       next();
     } else {
       res.status(403).json({ error: 'Forbidden: Admin access only' });

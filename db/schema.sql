@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text UNIQUE NOT NULL,
   name text NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE users (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE babies (
+CREATE TABLE IF NOT EXISTS babies (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name text NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE babies (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE plans (
+CREATE TABLE IF NOT EXISTS plans (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
   price_cents integer NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE plans (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   plan_id uuid NOT NULL REFERENCES plans(id),
@@ -36,7 +36,7 @@ CREATE TABLE subscriptions (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   subscription_id uuid NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
   amount_cents integer NOT NULL,
@@ -45,14 +45,14 @@ CREATE TABLE payments (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE vaccine_templates (
+CREATE TABLE IF NOT EXISTS vaccine_templates (
   id serial PRIMARY KEY,
   name text NOT NULL,
   days_from_birth integer NOT NULL,
   description text
 );
 
-CREATE TABLE user_vaccines (
+CREATE TABLE IF NOT EXISTS user_vaccines (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   baby_id uuid NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
   template_id integer NOT NULL REFERENCES vaccine_templates(id),
@@ -61,7 +61,7 @@ CREATE TABLE user_vaccines (
   due_date date
 );
 
-CREATE TABLE challenge_templates (
+CREATE TABLE IF NOT EXISTS challenge_templates (
   id serial PRIMARY KEY,
   category text NOT NULL,
   min_age_weeks integer NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE challenge_templates (
   xp_base integer NOT NULL
 );
 
-CREATE TABLE user_challenges (
+CREATE TABLE IF NOT EXISTS user_challenges (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   baby_id uuid NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
@@ -82,14 +82,14 @@ CREATE TABLE user_challenges (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE tracker_logs (
+CREATE TABLE IF NOT EXISTS tracker_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   baby_id uuid NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
   type text NOT NULL,
   timestamp timestamptz NOT NULL
 );
 
-CREATE TABLE growth_logs (
+CREATE TABLE IF NOT EXISTS growth_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   baby_id uuid NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
   date date NOT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE growth_logs (
   height numeric(4,1)
 );
 
-CREATE TABLE routines (
+CREATE TABLE IF NOT EXISTS routines (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   baby_id uuid NOT NULL REFERENCES babies(id) ON DELETE CASCADE,
   name text NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE routines (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE routine_tasks (
+CREATE TABLE IF NOT EXISTS routine_tasks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   routine_id uuid NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
   task text NOT NULL,
@@ -115,7 +115,7 @@ CREATE TABLE routine_tasks (
   priority integer DEFAULT 0
 );
 
-CREATE TABLE spirituality_content (
+CREATE TABLE IF NOT EXISTS spirituality_content (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   title text NOT NULL,
   text text NOT NULL,
@@ -124,7 +124,7 @@ CREATE TABLE spirituality_content (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE posts (
+CREATE TABLE IF NOT EXISTS posts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   content text NOT NULL,
@@ -132,7 +132,7 @@ CREATE TABLE posts (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE comments (
+CREATE TABLE IF NOT EXISTS comments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   post_id uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -140,14 +140,14 @@ CREATE TABLE comments (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE likes (
+CREATE TABLE IF NOT EXISTS likes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   post_id uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type text NOT NULL,
@@ -156,7 +156,7 @@ CREATE TABLE notifications (
   sent_at timestamptz
 );
 
-CREATE TABLE admin_users (
+CREATE TABLE IF NOT EXISTS admin_users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at timestamptz DEFAULT now()

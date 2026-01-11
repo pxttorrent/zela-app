@@ -1,9 +1,8 @@
-
-import { pool } from './server/db';
+import { pool } from '../../server/db';
 import fs from 'fs';
 import path from 'path';
 
-const runMigration = async () => {
+export default async function up() {
   try {
     const sql = fs.readFileSync(path.join(process.cwd(), 'db', 'migration_expansion.sql'), 'utf8');
     console.log('Applying Expansion SQL schema migration...');
@@ -11,9 +10,6 @@ const runMigration = async () => {
     console.log('Expansion migration successful!');
   } catch (err) {
     console.error('Migration failed', err);
-  } finally {
-    await pool.end();
+    throw err;
   }
-};
-
-runMigration();
+}

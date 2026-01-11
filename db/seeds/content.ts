@@ -1,8 +1,8 @@
-import { pool } from './server/db';
+import { pool } from '../../server/db';
 import fs from 'fs';
 import path from 'path';
 
-const runSeed = async () => {
+export default async function seed() {
   try {
     const sql = fs.readFileSync(path.join(process.cwd(), 'db', 'seed_full_content.sql'), 'utf8');
     console.log('Seeding full content (Vaccines & Pediatric Missions)...');
@@ -10,9 +10,6 @@ const runSeed = async () => {
     console.log('Seed successful!');
   } catch (err) {
     console.error('Seed failed', err);
-  } finally {
-    await pool.end();
+    throw err;
   }
-};
-
-runSeed();
+}

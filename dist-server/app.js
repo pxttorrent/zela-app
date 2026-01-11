@@ -51,7 +51,26 @@ dotenv_1.default.config();
 var app = (0, express_1.default)();
 // Trust Proxy for Rate Limiting behind load balancers (Render, Vercel, etc)
 app.set('trust proxy', 1);
-app.use((0, cors_1.default)());
+var allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://zela-app.vercel.app', // Adicione seus domínios de produção
+    'https://zela-app.netlify.app'
+];
+app.use((0, cors_1.default)({
+    origin: function (origin, callback) {
+        // Permitir requests sem origin (mobile apps, Postman)
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error('Bloqueado pelo CORS'));
+        }
+    },
+    credentials: true
+}));
 app.use(express_1.default.json());
 // Routes
 // Note: When running on Netlify Functions, the base path is /.netlify/functions/api

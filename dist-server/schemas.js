@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateBody = exports.ChallengeSchema = exports.TrackerSchema = exports.BabySchema = exports.LoginSchema = exports.SignupSchema = void 0;
+exports.validateBody = exports.MilestoneSchema = exports.ChatLogSchema = exports.ChallengeSchema = exports.TrackerSchema = exports.BabySchema = exports.LoginSchema = exports.SignupSchema = void 0;
 var zod_1 = require("zod");
 // --- Schemas ---
 exports.SignupSchema = zod_1.z.object({
@@ -17,16 +17,30 @@ exports.BabySchema = zod_1.z.object({
     birthDate: zod_1.z.string().refine(function (date) { return !isNaN(Date.parse(date)); }, {
         message: "Data de nascimento inválida (formato YYYY-MM-DD esperado)"
     }),
-    gender: zod_1.z.string().optional() // Permite string genérica por enquanto para compatibilidade, mas idealmente seria enum
+    gender: zod_1.z.string().optional(), // Permite string genérica por enquanto para compatibilidade, mas idealmente seria enum
+    focusAreas: zod_1.z.array(zod_1.z.string()).optional()
 });
 exports.TrackerSchema = zod_1.z.object({
-    type: zod_1.z.enum(['feed', 'sleep', 'diaper', 'bath', 'tummy', 'pump', 'meds', 'symptom']), // Adicionei tipos extras que podem existir
+    type: zod_1.z.enum(['feed', 'sleep', 'diaper', 'bath', 'tummy', 'pump', 'meds', 'symptom']),
+    subType: zod_1.z.enum(['feed_left', 'feed_right', 'bottle']).optional(),
     timestamp: zod_1.z.number().int().positive(),
     babyId: zod_1.z.union([zod_1.z.string(), zod_1.z.number()])
 });
 exports.ChallengeSchema = zod_1.z.object({
     challengeId: zod_1.z.number().int(),
     xp: zod_1.z.number().int().positive(),
+    babyId: zod_1.z.union([zod_1.z.string(), zod_1.z.number()])
+});
+exports.ChatLogSchema = zod_1.z.object({
+    messageUser: zod_1.z.string().min(1),
+    messageBot: zod_1.z.string().min(1),
+    sentiment: zod_1.z.string().optional(),
+    babyId: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional()
+});
+exports.MilestoneSchema = zod_1.z.object({
+    templateId: zod_1.z.number().int(),
+    achievedAt: zod_1.z.string().refine(function (date) { return !isNaN(Date.parse(date)); }, "Data inválida"),
+    notes: zod_1.z.string().optional(),
     babyId: zod_1.z.union([zod_1.z.string(), zod_1.z.number()])
 });
 // --- Middleware ---

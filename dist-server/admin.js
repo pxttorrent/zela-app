@@ -62,7 +62,7 @@ var adminAuth = function (req, res, next) { return __awaiter(void 0, void 0, voi
                 return [4 /*yield*/, (0, db_js_1.query)('SELECT email, is_admin FROM users WHERE id = $1', [decoded.id])];
             case 2:
                 rows = (_a.sent()).rows;
-                if (rows.length > 0 && (rows[0].email === 'admin@zela.com' || rows[0].is_admin)) {
+                if (rows.length > 0 && rows[0].is_admin === true) {
                     next();
                 }
                 else {
