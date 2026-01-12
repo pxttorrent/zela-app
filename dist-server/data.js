@@ -427,9 +427,59 @@ router.get('/chat-history', function (req, res) { return __awaiter(void 0, void 
         }
     });
 }); });
+// GET /data/chat-context - Contexto para IA
+router.get('/chat-context', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var babies, baby, ageDays, recentTrackers, nextVaccine, focusAreas, context, err_10;
+    var _a;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
+            case 0:
+                _b.trys.push([0, 5, , 6]);
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT * FROM babies WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1', [(_a = req.user) === null || _a === void 0 ? void 0 : _a.id])];
+            case 1:
+                babies = (_b.sent()).rows;
+                if (babies.length === 0) {
+                    return [2 /*return*/, res.json({ context: null })];
+                }
+                baby = babies[0];
+                ageDays = Math.floor((Date.now() - new Date(baby.birth_date).getTime()) / (24 * 60 * 60 * 1000));
+                return [4 /*yield*/, (0, db_js_1.query)("\n      SELECT type, timestamp FROM tracker_logs\n      WHERE baby_id = $1 AND timestamp > $2\n      ORDER BY timestamp DESC\n    ", [baby.id, new Date(Date.now() - 24 * 60 * 60 * 1000)])];
+            case 2:
+                recentTrackers = (_b.sent()).rows;
+                return [4 /*yield*/, (0, db_js_1.query)("\n      SELECT vt.name, vt.days_from_birth\n      FROM vaccine_templates vt\n      LEFT JOIN user_vaccines uv ON uv.template_id = vt.id AND uv.baby_id = $1\n      WHERE uv.status IS NULL OR uv.status != 'done'\n      ORDER BY vt.days_from_birth ASC\n      LIMIT 1\n    ", [baby.id])];
+            case 3:
+                nextVaccine = (_b.sent()).rows;
+                return [4 /*yield*/, (0, db_js_1.query)('SELECT area FROM baby_focus_areas WHERE baby_id = $1', [baby.id])];
+            case 4:
+                focusAreas = (_b.sent()).rows;
+                context = {
+                    babyName: baby.name,
+                    babyGender: baby.gender,
+                    ageDays: ageDays,
+                    ageMonths: Math.floor(ageDays / 30),
+                    ageWeeks: Math.floor(ageDays / 7),
+                    lifeStage: ageDays < 365 ? 'baby' : ageDays < 1095 ? 'toddler' : ageDays < 4380 ? 'kid' : 'teen',
+                    focusAreas: focusAreas.map(function (f) { return f.area; }),
+                    recentActivity: recentTrackers.slice(0, 5).map(function (t) { return ({
+                        type: t.type,
+                        hoursAgo: Math.round((Date.now() - new Date(t.timestamp).getTime()) / (60 * 60 * 1000))
+                    }); }),
+                    nextVaccine: nextVaccine[0] || null
+                };
+                res.json({ context: context });
+                return [3 /*break*/, 6];
+            case 5:
+                err_10 = _b.sent();
+                console.error(err_10);
+                res.status(500).json({ error: 'Failed to get chat context' });
+                return [3 /*break*/, 6];
+            case 6: return [2 /*return*/];
+        }
+    });
+}); });
 // Endpoint for app or n8n (via API Key ideally, but using JWT for now if called from app)
 router.post('/chat-log', (0, schemas_js_1.validateBody)(schemas_js_1.ChatLogSchema), function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var _a, messageUser, messageBot, sentiment, babyId, userId, isOwner, err_10;
+    var _a, messageUser, messageBot, sentiment, babyId, userId, isOwner, err_11;
     var _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
@@ -451,8 +501,8 @@ router.post('/chat-log', (0, schemas_js_1.validateBody)(schemas_js_1.ChatLogSche
                 res.json({ success: true });
                 return [3 /*break*/, 5];
             case 4:
-                err_10 = _c.sent();
-                console.error(err_10);
+                err_11 = _c.sent();
+                console.error(err_11);
                 res.status(500).json({ error: 'Failed to save chat log' });
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];

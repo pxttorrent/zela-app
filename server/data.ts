@@ -338,6 +338,69 @@ router.get('/chat-history', async (req: RequestWithUser, res: Response) => {
   }
 });
 
+// GET /data/chat-context - Contexto para IA
+router.get('/chat-context', async (req: RequestWithUser, res: Response) => {
+  try {
+    // Buscar bebê do usuário
+    const { rows: babies } = await query(
+      'SELECT * FROM babies WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [req.user?.id]
+    );
+
+    if (babies.length === 0) {
+      return res.json({ context: null });
+    }
+
+    const baby = babies[0];
+    const ageDays = Math.floor(
+      (Date.now() - new Date(baby.birth_date).getTime()) / (24 * 60 * 60 * 1000)
+    );
+
+    // Últimos trackers (últimas 24h)
+    const { rows: recentTrackers } = await query(`
+      SELECT type, timestamp FROM tracker_logs
+      WHERE baby_id = $1 AND timestamp > $2
+      ORDER BY timestamp DESC
+    `, [baby.id, new Date(Date.now() - 24 * 60 * 60 * 1000)]);
+
+    // Próxima vacina
+    const { rows: nextVaccine } = await query(`
+      SELECT vt.name, vt.days_from_birth
+      FROM vaccine_templates vt
+      LEFT JOIN user_vaccines uv ON uv.template_id = vt.id AND uv.baby_id = $1
+      WHERE uv.status IS NULL OR uv.status != 'done'
+      ORDER BY vt.days_from_birth ASC
+      LIMIT 1
+    `, [baby.id]);
+
+    // Áreas de foco
+    const { rows: focusAreas } = await query(
+      'SELECT area FROM baby_focus_areas WHERE baby_id = $1',
+      [baby.id]
+    );
+
+    const context = {
+      babyName: baby.name,
+      babyGender: baby.gender,
+      ageDays,
+      ageMonths: Math.floor(ageDays / 30),
+      ageWeeks: Math.floor(ageDays / 7),
+      lifeStage: ageDays < 365 ? 'baby' : ageDays < 1095 ? 'toddler' : ageDays < 4380 ? 'kid' : 'teen',
+      focusAreas: focusAreas.map(f => f.area),
+      recentActivity: recentTrackers.slice(0, 5).map(t => ({
+        type: t.type,
+        hoursAgo: Math.round((Date.now() - new Date(t.timestamp).getTime()) / (60 * 60 * 1000))
+      })),
+      nextVaccine: nextVaccine[0] || null
+    };
+
+    res.json({ context });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get chat context' });
+  }
+});
+
 // Endpoint for app or n8n (via API Key ideally, but using JWT for now if called from app)
 router.post('/chat-log', validateBody(ChatLogSchema), async (req: RequestWithUser, res: Response) => {
   const { messageUser, messageBot, sentiment, babyId } = req.body;
